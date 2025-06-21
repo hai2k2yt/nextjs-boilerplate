@@ -1,5 +1,6 @@
 export { FlowCanvas } from './flow-canvas'
 export { FlowControls } from './flow-controls'
 export { InputNode, DefaultNode, OutputNode, nodeTypes } from './custom-nodes'
-export type { CustomNode, CustomNodeData, FlowState, NodeType } from './node-types'
+export { DeletableEdge, edgeTypes } from './custom-edges'
+export type { CustomNode, CustomNodeData, CustomEdge, CustomEdgeData, FlowState, NodeType } from './node-types'
 export { initialNodes, initialEdges } from './node-types'

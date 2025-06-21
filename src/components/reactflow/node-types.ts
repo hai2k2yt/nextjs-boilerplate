@@ -9,9 +9,16 @@ export interface CustomNodeData {
 
 export type CustomNode = Node<CustomNodeData>
 
+export interface CustomEdgeData {
+  label?: string
+  [key: string]: unknown
+}
+
+export type CustomEdge = Edge<CustomEdgeData>
+
 export interface FlowState {
   nodes: CustomNode[]
-  edges: Edge[]
+  edges: CustomEdge[]
 }
 
 export const initialNodes: CustomNode[] = [
@@ -46,9 +53,9 @@ export const initialNodes: CustomNode[] = [
   },
 ]
 
-export const initialEdges: Edge[] = [
-  { id: 'e1-2', source: '1', target: '2' },
-  { id: 'e2-3', source: '2', target: '3' },
+export const initialEdges: CustomEdge[] = [
+  { id: 'e1-2', source: '1', target: '2', type: 'deletable' },
+  { id: 'e2-3', source: '2', target: '3', type: 'deletable' },
 ]
 
 export type NodeType = 'input' | 'default' | 'output'

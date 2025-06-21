@@ -16,21 +16,23 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { nodeTypes } from './custom-nodes'
+import { edgeTypes } from './custom-edges'
 import { FlowControls } from './flow-controls'
-import { 
-  initialNodes, 
-  initialEdges, 
-  CustomNode, 
-  NodeType 
+import {
+  initialNodes,
+  initialEdges,
+  CustomNode,
+  CustomEdge,
+  NodeType
 } from './node-types'
 
 function FlowCanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<CustomNode>(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  const [edges, setEdges, onEdgesChange] = useEdgesState<CustomEdge>(initialEdges)
   const [nodeId, setNodeId] = useState(4)
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => setEdges((eds) => addEdge({ ...params, type: 'deletable' }, eds)),
     [setEdges]
   )
 
@@ -79,6 +81,7 @@ function FlowCanvasInner() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         className="bg-background"
         defaultEdgeOptions={{

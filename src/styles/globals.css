@@ -83,6 +83,16 @@
   }
 }
 
+/* React Flow custom styles */
+/* Override React Flow default node widths to allow custom sizing */
+.react-flow__node-input,
+.react-flow__node-default,
+.react-flow__node-output,
+.react-flow__node-group {
+  width: auto !important;
+  min-width: auto !important;
+}
+
 /* React Flow animations */
 @keyframes dash {
   to {

@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useRef } from 'react'
+import React from 'react'
 import { z } from 'zod'
+import { useFormContext } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import {
   Form,
-  FormRef,
   InputField,
   SelectField,
   TextareaField,
@@ -14,6 +15,7 @@ import {
   RadioField,
   DatePickerField,
 } from './index'
+import { useFormSubmission, simulateFormSubmission } from '@/hooks/use-form-submission'
 
 // Define the form schema using Zod
 const formSchema = z.object({
@@ -46,16 +48,43 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
-export const FormExample: React.FC = () => {
-  const formRef = useRef<FormRef<FormData>>(null)
-
-  const handleSubmit = (data: FormData) => {
-    console.log('Form submitted:', data)
-    alert('Form submitted successfully! Check the console for data.')
-  }
+// Component that uses the form context directly
+const FormControls: React.FC = () => {
+  const { reset, formState } = useFormContext<FormData>()
 
   const handleReset = () => {
-    formRef.current?.reset()
+    reset()
+  }
+
+  return (
+    <div className="flex gap-4 pt-6">
+      <Button type="submit" className="flex-1" disabled={formState.isSubmitting}>
+        {formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {formState.isSubmitting ? 'Submitting...' : 'Submit'}
+      </Button>
+      <Button type="button" variant="outline" onClick={handleReset} disabled={formState.isSubmitting}>
+        Reset
+      </Button>
+    </div>
+  )
+}
+
+export const FormExample: React.FC = () => {
+  // Setup React Query mutation for form submission
+  const formSubmission = useFormSubmission({
+    mutationFn: simulateFormSubmission<FormData>,
+    options: {
+      successMessage: 'Example form submitted successfully! 🎉',
+      onSuccess: (response, data) => {
+        console.log('Example form submitted:', { response, data })
+      },
+    },
+  })
+
+  const handleSubmit = async (data: FormData): Promise<void> => {
+    console.log('Submitting example form:', data)
+    // Return the promise so React Hook Form can track isSubmitting
+    await formSubmission.submitAsync(data)
   }
 
   const countryOptions = [
@@ -91,7 +120,6 @@ export const FormExample: React.FC = () => {
       </CardHeader>
       <CardContent>
         <Form
-          ref={formRef}
           schema={formSchema}
           onSubmit={handleSubmit}
           defaultValues={{
@@ -204,14 +232,7 @@ export const FormExample: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-6">
-            <Button type="submit" className="flex-1">
-              Submit
-            </Button>
-            <Button type="button" variant="outline" onClick={handleReset}>
-              Reset
-            </Button>
-          </div>
+          <FormControls />
         </Form>
       </CardContent>
     </Card>

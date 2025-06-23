@@ -23,6 +23,7 @@ import {
   Bookmark,
   Archive,
   Workflow,
+  FileText,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -51,6 +52,7 @@ const navigationItems = [
       { title: 'Calendar', href: '/calendar', icon: Calendar },
       { title: 'Mail', href: '/mail', icon: Mail },
       { title: 'React Flow', href: '/reactflow', icon: Workflow },
+      { title: 'Forms', href: '/forms', icon: FileText },
     ],
   },
   {

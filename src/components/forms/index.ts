@@ -1,6 +1,5 @@
 // Main form wrapper
 export { default as Form } from './form'
-export type { FormRef } from './form'
 
 // Form field components
 export { InputField } from './input-field'

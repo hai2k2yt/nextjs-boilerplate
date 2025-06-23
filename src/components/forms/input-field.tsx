@@ -11,6 +11,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 interface InputFieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'name'> {
   name: string
@@ -25,6 +26,7 @@ export const InputField: React.FC<InputFieldProps> = ({
   description,
   required = false,
   type = 'text',
+  className,
   ...props
 }) => {
   const { control } = useFormContext()
@@ -64,7 +66,7 @@ export const InputField: React.FC<InputFieldProps> = ({
               {...field}
               {...props}
               type={type}
-              className="w-full"
+              className={cn("w-full", className)}
             />
           </FormControl>
           {description && (

@@ -25,6 +25,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
   label,
   description,
   required = false,
+  className,
   ...props
 }) => {
   const { control } = useFormContext()
@@ -45,6 +46,7 @@ export const TextareaField: React.FC<TextareaFieldProps> = ({
             <Textarea
               {...field}
               {...props}
+              className={className}
             />
           </FormControl>
           {description && (

@@ -15,8 +15,11 @@ import {
   CheckboxField,
   RadioField,
   DatePickerField,
+  ApiSelectExamples,
 } from '@/components/forms'
 import { useFormSubmission, simulateFormSubmission } from '@/hooks/use-form-submission'
+import { commonOptions } from '@/hooks/use-select-options'
+import { fetchCountries, transformCountries, ApiCountry } from '@/lib/api/select-options'
 
 // Define comprehensive form schema
 const formSchema = z.object({
@@ -146,17 +149,7 @@ export default function FormsPage() {
     await formSubmission.submitAsync(data)
   }
 
-  // Options for select fields
-  const countryOptions = [
-    { value: 'us', label: 'United States' },
-    { value: 'ca', label: 'Canada' },
-    { value: 'uk', label: 'United Kingdom' },
-    { value: 'de', label: 'Germany' },
-    { value: 'fr', label: 'France' },
-    { value: 'jp', label: 'Japan' },
-    { value: 'au', label: 'Australia' },
-  ]
-
+  // Options for select fields - now using commonOptions from the hook
   const interestOptions = [
     { value: 'technology', label: 'Technology' },
     { value: 'sports', label: 'Sports' },
@@ -174,27 +167,6 @@ export default function FormsPage() {
     { value: 'nodejs', label: 'Node.js' },
     { value: 'python', label: 'Python' },
     { value: 'design', label: 'UI/UX Design' },
-  ]
-
-  const genderOptions = [
-    { value: 'male', label: 'Male' },
-    { value: 'female', label: 'Female' },
-    { value: 'other', label: 'Other' },
-    { value: 'prefer-not-to-say', label: 'Prefer not to say' },
-  ]
-
-  const experienceLevelOptions = [
-    { value: 'beginner', label: 'Beginner (0-1 years)' },
-    { value: 'intermediate', label: 'Intermediate (2-5 years)' },
-    { value: 'advanced', label: 'Advanced (5-10 years)' },
-    { value: 'expert', label: 'Expert (10+ years)' },
-  ]
-
-  const contactMethodOptions = [
-    { value: 'email', label: 'Email' },
-    { value: 'phone', label: 'Phone' },
-    { value: 'sms', label: 'SMS' },
-    { value: 'mail', label: 'Postal Mail' },
   ]
 
   return (
@@ -311,11 +283,19 @@ export default function FormsPage() {
                         placeholder="Enter your city"
                         required
                       />
-                      <SelectField
+                      <SelectField<ApiCountry[]>
                         name="country"
-                        label="Country"
+                        label="Country (API-based with Clear Button)"
                         placeholder="Select your country"
-                        options={countryOptions}
+                        optionsConfig={{
+                          apiConfig: {
+                            queryKey: ['countries'],
+                            queryFn: fetchCountries,
+                          },
+                          transform: transformCountries,
+                        }}
+                        description="Countries loaded from API with loading state and clearable functionality"
+                        clearable
                         required
                       />
                       <InputField
@@ -376,22 +356,23 @@ export default function FormsPage() {
                     <RadioField
                       name="gender"
                       label="Gender"
-                      options={genderOptions}
+                      options={commonOptions.genders}
                       required
                     />
 
                     <SelectField
                       name="experienceLevel"
-                      label="Experience Level"
+                      label="Experience Level (Clearable)"
                       placeholder="Select your experience level"
-                      options={experienceLevelOptions}
+                      options={commonOptions.experienceLevels}
+                      clearable
                       required
                     />
 
                     <RadioField
                       name="preferredContact"
                       label="Preferred Contact Method"
-                      options={contactMethodOptions}
+                      options={commonOptions.contactMethods}
                       required
                     />
                   </div>
@@ -452,6 +433,11 @@ export default function FormsPage() {
             </Form>
           </CardContent>
         </Card>
+
+        {/* API Select Examples */}
+        <div className="mt-12">
+          <ApiSelectExamples />
+        </div>
       </div>
     </div>
   )

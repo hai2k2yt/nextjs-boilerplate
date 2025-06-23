@@ -9,6 +9,10 @@ export { CheckboxField } from './checkbox-field'
 export { RadioField } from './radio-field'
 export { DatePickerField } from './date-picker-field'
 
+// Example components
+export { FormExample } from './example'
+export { ApiSelectExamples } from './api-select-examples'
+
 // Re-export shadcn form components for advanced usage
 export {
   FormField,

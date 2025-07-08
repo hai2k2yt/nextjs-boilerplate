@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from 'react'
+import { useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 export interface SelectOption {
@@ -16,7 +16,7 @@ export interface UseSelectOptionsConfig<TData = any> {
   // API configuration
   apiConfig?: {
     queryKey: string[]
-    queryFn: () => Promise<TData>
+    queryFn: (searchQuery?: string) => Promise<TData>
     enabled?: boolean
     staleTime?: number
     cacheTime?: number
@@ -31,6 +31,13 @@ export interface UseSelectOptionsConfig<TData = any> {
 
   // Loading placeholder option
   loadingOption?: SelectOption
+
+  // Search configuration
+  searchConfig?: {
+    searchQuery?: string
+    minSearchLength?: number
+    searchPlaceholder?: string
+  }
 }
 
 export interface UseSelectOptionsReturn {
@@ -52,10 +59,19 @@ export function useSelectOptions<TData = any>(config: UseSelectOptionsConfig<TDa
     apiConfig,
     transform,
     defaultOption,
-    loadingOption = { value: '__loading__', label: 'Loading...', disabled: true }
+    loadingOption = { value: '__loading__', label: 'Loading...', disabled: true },
+    searchConfig
   } = config
 
   // Use React Query for API-based options
+  const searchQuery = searchConfig?.searchQuery || ''
+  const minSearchLength = searchConfig?.minSearchLength || 0
+
+  // Only enable API query if search query meets minimum length requirement
+  const shouldEnableQuery = !!apiConfig &&
+    (apiConfig.enabled !== false) &&
+    (searchQuery.length >= minSearchLength)
+
   const {
     data: apiData,
     isLoading: isApiLoading,
@@ -63,50 +79,60 @@ export function useSelectOptions<TData = any>(config: UseSelectOptionsConfig<TDa
     error: apiError,
     refetch
   } = useQuery<TData>({
-    queryKey: apiConfig?.queryKey || [],
-    queryFn: apiConfig?.queryFn || (() => Promise.resolve([] as TData)),
-    enabled: !!apiConfig && (apiConfig.enabled !== false),
+    queryKey: [...(apiConfig?.queryKey || []), searchQuery],
+    queryFn: () => apiConfig?.queryFn ? apiConfig.queryFn(searchQuery) : Promise.resolve([] as TData),
+    enabled: shouldEnableQuery,
     staleTime: apiConfig?.staleTime || 5 * 60 * 1000, // 5 minutes
     gcTime: apiConfig?.cacheTime || 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: apiConfig?.refetchOnWindowFocus ?? false,
   })
 
+  // Use ref to store previous options for stable reference comparison
+  const previousOptionsRef = useRef<SelectOption[]>([])
+
   // Process options based on configuration
-  const processedOptions = useCallback((): SelectOption[] => {
-    let options: SelectOption[] = []
+  const options = useMemo((): SelectOption[] => {
+    let processedOptions: SelectOption[] = []
 
     if (staticOptions) {
       // Use static options
-      options = [...staticOptions]
+      processedOptions = [...staticOptions]
     } else if (apiConfig) {
       if (isApiLoading) {
         // Show loading option while fetching
-        options = [loadingOption]
+        processedOptions = [loadingOption]
       } else if (isApiError || !apiData) {
         // Show empty or error state
-        options = []
+        processedOptions = []
       } else {
         // Transform API data if transform function is provided
         if (transform && apiData) {
-          options = transform(apiData)
+          processedOptions = transform(apiData)
         } else if (Array.isArray(apiData)) {
           // If no transform function and apiData is an array, assume it's already SelectOption[]
-          options = apiData as SelectOption[]
+          processedOptions = apiData as SelectOption[]
         } else {
-          options = []
+          processedOptions = []
         }
       }
     }
 
     // Add default option at the beginning if provided
     if (defaultOption && !isApiLoading) {
-      options = [defaultOption, ...options]
+      processedOptions = [defaultOption, ...processedOptions]
     }
 
-    return options
-  }, [staticOptions, apiData, isApiLoading, isApiError, transform, defaultOption, loadingOption, apiConfig])
+    // Check if options content actually changed (deep comparison)
+    const optionsChanged = JSON.stringify(processedOptions) !== JSON.stringify(previousOptionsRef.current)
 
-  const options = processedOptions()
+    if (optionsChanged) {
+      previousOptionsRef.current = processedOptions
+      return processedOptions
+    } else {
+      // Return the same reference if content hasn't changed
+      return previousOptionsRef.current
+    }
+  }, [staticOptions, apiData, isApiLoading, isApiError, transform, defaultOption, loadingOption, apiConfig])
 
   return {
     options,

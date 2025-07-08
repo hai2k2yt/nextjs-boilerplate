@@ -4,6 +4,8 @@ export { default as Form } from './form'
 // Form field components
 export { InputField } from './input-field'
 export { SelectField } from './select-field'
+export { LocalSearchSelectField } from './local-search-select-field'
+export { RemoteSearchSelectField } from './remote-search-select-field'
 export { TextareaField } from './textarea-field'
 export { CheckboxField } from './checkbox-field'
 export { RadioField } from './radio-field'

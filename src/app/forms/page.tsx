@@ -15,11 +15,21 @@ import {
   CheckboxField,
   RadioField,
   DatePickerField,
+  LocalSearchSelectField,
+  RemoteSearchSelectField,
   ApiSelectExamples,
 } from '@/components/forms'
 import { useFormSubmission, simulateFormSubmission } from '@/hooks/use-form-submission'
 import { commonOptions } from '@/hooks/use-select-options'
 import { fetchCountries, transformCountries, ApiCountry } from '@/lib/api/select-options'
+import {
+  searchUsers,
+  searchProducts,
+  transformUsers,
+  transformProducts,
+  SearchableUser,
+  SearchableProduct,
+} from '@/lib/api/search-select-options'
 
 // Define comprehensive form schema
 const formSchema = z.object({
@@ -58,6 +68,15 @@ const formSchema = z.object({
     required_error: 'Please select your birth date',
   }),
   availableFrom: z.date().optional(),
+
+  // Search Select Fields
+  // Local search select fields
+  favoriteColor: z.string().min(1, 'Please select a favorite color'),
+  preferredLanguage: z.string().min(1, 'Please select a preferred language'),
+
+  // Remote search select fields
+  assignedUser: z.string().min(1, 'Please select an assigned user'),
+  favoriteProduct: z.string().min(1, 'Please select a favorite product'),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -169,6 +188,43 @@ export default function FormsPage() {
     { value: 'design', label: 'UI/UX Design' },
   ]
 
+  // Options for local search select fields
+  const colorOptions = [
+    { value: 'red', label: 'Red' },
+    { value: 'blue', label: 'Blue' },
+    { value: 'green', label: 'Green' },
+    { value: 'yellow', label: 'Yellow' },
+    { value: 'purple', label: 'Purple' },
+    { value: 'orange', label: 'Orange' },
+    { value: 'pink', label: 'Pink' },
+    { value: 'brown', label: 'Brown' },
+    { value: 'black', label: 'Black' },
+    { value: 'white', label: 'White' },
+    { value: 'gray', label: 'Gray' },
+    { value: 'cyan', label: 'Cyan' },
+    { value: 'magenta', label: 'Magenta' },
+    { value: 'lime', label: 'Lime' },
+    { value: 'indigo', label: 'Indigo' },
+  ]
+
+  const languageOptions = [
+    { value: 'english', label: 'English' },
+    { value: 'spanish', label: 'Spanish' },
+    { value: 'french', label: 'French' },
+    { value: 'german', label: 'German' },
+    { value: 'italian', label: 'Italian' },
+    { value: 'portuguese', label: 'Portuguese' },
+    { value: 'russian', label: 'Russian' },
+    { value: 'chinese', label: 'Chinese (Mandarin)' },
+    { value: 'japanese', label: 'Japanese' },
+    { value: 'korean', label: 'Korean' },
+    { value: 'arabic', label: 'Arabic' },
+    { value: 'hindi', label: 'Hindi' },
+    { value: 'dutch', label: 'Dutch' },
+    { value: 'swedish', label: 'Swedish' },
+    { value: 'norwegian', label: 'Norwegian' },
+  ]
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -212,6 +268,11 @@ export default function FormsPage() {
                 experienceLevel: '',
                 preferredContact: '',
                 birthDate: new Date(),
+                // Search select fields
+                favoriteColor: '',
+                preferredLanguage: '',
+                assignedUser: '',
+                favoriteProduct: '',
               }}
             >
               <div className="space-y-8">
@@ -419,6 +480,93 @@ export default function FormsPage() {
                       label="Subscribe to our newsletter"
                       description="Optional: Receive updates and news"
                     />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Search Select Fields Section */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Search Select Fields</h3>
+                  <div className="space-y-6">
+                    {/* Local Search Select Fields */}
+                    <div>
+                      <h4 className="text-md font-medium mb-3 text-muted-foreground">
+                        Local Search Select (Client-side filtering)
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <LocalSearchSelectField
+                          name="favoriteColor"
+                          label="Favorite Color"
+                          placeholder="Select your favorite color"
+                          searchPlaceholder="Type to search colors..."
+                          options={colorOptions}
+                          description="Search and select from predefined colors"
+                          clearable
+                          required
+                          minSearchLength={0}
+                        />
+
+                        <LocalSearchSelectField
+                          name="preferredLanguage"
+                          label="Preferred Language"
+                          placeholder="Select your preferred language"
+                          searchPlaceholder="Type to search languages..."
+                          options={languageOptions}
+                          description="Search and select from available languages"
+                          clearable
+                          required
+                          minSearchLength={1}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Remote Search Select Fields */}
+                    <div>
+                      <h4 className="text-md font-medium mb-3 text-muted-foreground">
+                        Remote Search Select (API-based search)
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <RemoteSearchSelectField<SearchableUser[]>
+                          name="assignedUser"
+                          label="Assigned User"
+                          placeholder="Search for a user"
+                          searchPlaceholder="Type name, email, or department..."
+                          optionsConfig={{
+                            apiConfig: {
+                              queryKey: ['search-users'],
+                              queryFn: searchUsers,
+                            },
+                            transform: transformUsers,
+                          }}
+                          description="Search users from the organization (min 2 characters)"
+                          clearable
+                          required
+                          minSearchLength={2}
+                          searchDebounceMs={300}
+                        />
+
+                        <RemoteSearchSelectField<SearchableProduct[]>
+                          name="favoriteProduct"
+                          label="Favorite Product"
+                          placeholder="Search for a product"
+                          searchPlaceholder="Type product name, brand, or category..."
+                          optionsConfig={{
+                            apiConfig: {
+                              queryKey: ['search-products'],
+                              queryFn: searchProducts,
+                            },
+                            transform: transformProducts,
+                          }}
+                          description="Search products from catalog (min 2 characters)"
+                          clearable
+                          required
+                          minSearchLength={2}
+                          searchDebounceMs={400}
+                          noResultsText="No products found matching your search"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 

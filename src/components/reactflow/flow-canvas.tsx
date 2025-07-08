@@ -93,21 +93,21 @@ function FlowCanvasInner() {
         snapGrid={[15, 15]}
       >
         <Background
-          color="hsl(var(--muted-foreground))"
+          color="var(--color-muted-foreground)"
           gap={20}
           size={1}
           variant={BackgroundVariant.Dots}
         />
-        <Controls 
+        <Controls
           className="!bottom-4 !left-4 !top-auto"
           showZoom={false}
           showFitView={false}
           showInteractive={false}
         />
-        <MiniMap 
+        <MiniMap
           className="!bottom-4 !right-4"
-          nodeColor="hsl(var(--primary))"
-          maskColor="hsl(var(--background) / 0.8)"
+          nodeColor="var(--color-primary)"
+          maskColor="color-mix(in oklch, var(--color-background) 80%, transparent)"
           pannable
           zoomable
         />

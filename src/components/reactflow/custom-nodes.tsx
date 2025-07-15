@@ -2,18 +2,40 @@ import { memo } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Badge } from '@/components/ui/badge'
 import { CustomNode } from './node-types'
+import { useFlowStore } from '@/stores/flow-store'
 
-export const InputNode = memo(({ data, selected: _selected }: NodeProps<CustomNode>) => {
+export const InputNode = memo(({ data, id }: NodeProps<CustomNode>) => {
+  const selectNode = useFlowStore((state) => state.selectNode)
+
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    selectNode(id)
+  }
+
+  const nodeStyle: React.CSSProperties = {
+    backgroundColor: data.backgroundColor || '#ffffff',
+    color: data.textColor || '#000000',
+    border: '1px solid #e2e8f0',
+  }
+
   return (
-    <div className="min-w-[200px] p-4">
+    <div
+      className="min-w-[200px] p-4 cursor-pointer hover:shadow-md transition-shadow rounded-lg"
+      style={nodeStyle}
+      onClick={handleClick}
+    >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold leading-none tracking-tight">{data.label}</h3>
+        <h3 className="text-sm font-semibold leading-none tracking-tight" style={{ color: data.textColor || '#000000' }}>
+          {data.label}
+        </h3>
         <Badge variant="secondary">Input</Badge>
       </div>
       {data.description && (
-        <p className="text-xs text-muted-foreground mb-3">{data.description}</p>
+        <p className="text-xs mb-3" style={{ color: data.textColor || '#000000', opacity: 0.7 }}>
+          {data.description}
+        </p>
       )}
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs" style={{ color: data.textColor || '#000000', opacity: 0.7 }}>
         Data source
       </div>
       <Handle
@@ -27,17 +49,38 @@ export const InputNode = memo(({ data, selected: _selected }: NodeProps<CustomNo
 
 InputNode.displayName = 'InputNode'
 
-export const DefaultNode = memo(({ data, selected: _selected }: NodeProps<CustomNode>) => {
+export const DefaultNode = memo(({ data, id }: NodeProps<CustomNode>) => {
+  const selectNode = useFlowStore((state) => state.selectNode)
+
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    selectNode(id)
+  }
+
+  const nodeStyle: React.CSSProperties = {
+    backgroundColor: data.backgroundColor || '#ffffff',
+    color: data.textColor || '#000000',
+    border: '1px solid #e2e8f0',
+  }
+
   return (
-    <div className="min-w-[200px] p-4">
+    <div
+      className="min-w-[200px] p-4 cursor-pointer hover:shadow-md transition-shadow rounded-lg"
+      style={nodeStyle}
+      onClick={handleClick}
+    >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold leading-none tracking-tight">{data.label}</h3>
+        <h3 className="text-sm font-semibold leading-none tracking-tight" style={{ color: data.textColor || '#000000' }}>
+          {data.label}
+        </h3>
         <Badge variant="outline">Process</Badge>
       </div>
       {data.description && (
-        <p className="text-xs text-muted-foreground mb-3">{data.description}</p>
+        <p className="text-xs mb-3" style={{ color: data.textColor || '#000000', opacity: 0.7 }}>
+          {data.description}
+        </p>
       )}
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs" style={{ color: data.textColor || '#000000', opacity: 0.7 }}>
         Transform data
       </div>
       <Handle
@@ -56,17 +99,38 @@ export const DefaultNode = memo(({ data, selected: _selected }: NodeProps<Custom
 
 DefaultNode.displayName = 'DefaultNode'
 
-export const OutputNode = memo(({ data, selected: _selected }: NodeProps<CustomNode>) => {
+export const OutputNode = memo(({ data, id }: NodeProps<CustomNode>) => {
+  const selectNode = useFlowStore((state) => state.selectNode)
+
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    selectNode(id)
+  }
+
+  const nodeStyle: React.CSSProperties = {
+    backgroundColor: data.backgroundColor || '#ffffff',
+    color: data.textColor || '#000000',
+    border: '1px solid #e2e8f0',
+  }
+
   return (
-    <div className="min-w-[200px] p-4">
+    <div
+      className="min-w-[200px] p-4 cursor-pointer hover:shadow-md transition-shadow rounded-lg"
+      style={nodeStyle}
+      onClick={handleClick}
+    >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold leading-none tracking-tight">{data.label}</h3>
+        <h3 className="text-sm font-semibold leading-none tracking-tight" style={{ color: data.textColor || '#000000' }}>
+          {data.label}
+        </h3>
         <Badge variant="destructive">Output</Badge>
       </div>
       {data.description && (
-        <p className="text-xs text-muted-foreground mb-3">{data.description}</p>
+        <p className="text-xs mb-3" style={{ color: data.textColor || '#000000', opacity: 0.7 }}>
+          {data.description}
+        </p>
       )}
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs" style={{ color: data.textColor || '#000000', opacity: 0.7 }}>
         Final result
       </div>
       <Handle

@@ -4,22 +4,16 @@ import { Plus, Trash2, RotateCcw, ZoomIn, ZoomOut, Maximize } from 'lucide-react
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { CustomNode, NodeType } from './node-types'
 
-interface FlowControlsProps {
-  onAddNode: (type: NodeType) => void
-  onDeleteSelected: () => void
-  onClearAll: () => void
-  selectedNodes: CustomNode[]
-}
+import { useFlowActions, useSelectedNodes } from '@/stores/flow-store'
 
-export function FlowControls({ 
-  onAddNode, 
-  onDeleteSelected, 
-  onClearAll, 
-  selectedNodes 
-}: FlowControlsProps) {
+export function FlowControls() {
+  // Subscribe only to data (React Flow pattern)
+  const selectedNodes = useSelectedNodes()
   const { zoomIn, zoomOut, fitView } = useReactFlow()
+
+  // Get stable action references (React Flow pattern)
+  const { addNode, deleteSelectedNodes, clearAll } = useFlowActions()
 
   const handleZoomIn = useCallback(() => {
     zoomIn({ duration: 300 })
@@ -34,7 +28,7 @@ export function FlowControls({
   }, [fitView])
 
   return (
-    <Card className="absolute top-4 left-4 z-10 min-w-[250px]">
+    <Card className="absolute top-4 left-4 z-20 min-w-[250px]">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm">Flow Controls</CardTitle>
       </CardHeader>
@@ -46,7 +40,7 @@ export function FlowControls({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onAddNode('input')}
+              onClick={() => addNode('input')}
               className="text-xs"
             >
               <Plus className="w-3 h-3 mr-1" />
@@ -55,7 +49,7 @@ export function FlowControls({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onAddNode('default')}
+              onClick={() => addNode('default')}
               className="text-xs"
             >
               <Plus className="w-3 h-3 mr-1" />
@@ -64,7 +58,7 @@ export function FlowControls({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onAddNode('output')}
+              onClick={() => addNode('output')}
               className="text-xs"
             >
               <Plus className="w-3 h-3 mr-1" />
@@ -82,7 +76,7 @@ export function FlowControls({
             <Button
               size="sm"
               variant="destructive"
-              onClick={onDeleteSelected}
+              onClick={deleteSelectedNodes}
               disabled={selectedNodes.length === 0}
               className="text-xs"
             >
@@ -92,7 +86,7 @@ export function FlowControls({
             <Button
               size="sm"
               variant="outline"
-              onClick={onClearAll}
+              onClick={clearAll}
               className="text-xs"
             >
               <RotateCcw className="w-3 h-3 mr-1" />

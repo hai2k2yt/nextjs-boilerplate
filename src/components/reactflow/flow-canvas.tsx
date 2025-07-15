@@ -1,16 +1,11 @@
 'use client'
 
-import { useCallback, useState } from 'react'
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
   ReactFlowProvider,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -18,59 +13,23 @@ import '@xyflow/react/dist/style.css'
 import { nodeTypes } from './custom-nodes'
 import { edgeTypes } from './custom-edges'
 import { FlowControls } from './flow-controls'
-import {
-  initialNodes,
-  initialEdges,
-  CustomNode,
-  CustomEdge,
-  NodeType
-} from './node-types'
+import { NodeSettingsPanel } from './node-settings-panel'
+import { useFlowStore, useFlowActions, useSelectedNode } from '@/stores/flow-store'
 
 function FlowCanvasInner() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<CustomNode>(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState<CustomEdge>(initialEdges)
-  const [nodeId, setNodeId] = useState(4)
+  // Subscribe only to data (React Flow pattern)
+  const nodes = useFlowStore((state) => state.nodes)
+  const edges = useFlowStore((state) => state.edges)
+  const selectedNodeId = useFlowStore((state) => state.selectedNodeId)
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, type: 'deletable' }, eds)),
-    [setEdges]
-  )
+  // Get stable action references (React Flow pattern)
+  const { onNodesChange, onEdgesChange, onConnect, updateNode, selectNode } = useFlowActions()
 
-  const addNode = useCallback((type: NodeType) => {
-    const newNode: CustomNode = {
-      id: nodeId.toString(),
-      type: type === 'default' ? undefined : type,
-      position: {
-        x: Math.random() * 400 + 100,
-        y: Math.random() * 400 + 100,
-      },
-      data: {
-        label: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-        description: `New ${type} node`,
-        type,
-      },
-    }
-    
-    setNodes((nds) => [...nds, newNode])
-    setNodeId((id) => id + 1)
-  }, [nodeId, setNodes])
+  const selectedNode = useSelectedNode()
 
-  const deleteSelectedNodes = useCallback(() => {
-    const selectedNodeIds = nodes.filter(node => node.selected).map(node => node.id)
-    
-    setNodes((nds) => nds.filter(node => !node.selected))
-    setEdges((eds) => eds.filter(edge => 
-      !selectedNodeIds.includes(edge.source) && !selectedNodeIds.includes(edge.target)
-    ))
-  }, [nodes, setNodes, setEdges])
-
-  const clearAll = useCallback(() => {
-    setNodes([])
-    setEdges([])
-    setNodeId(1)
-  }, [setNodes, setEdges])
-
-  const selectedNodes = nodes.filter(node => node.selected)
+  const handleCloseSettings = () => {
+    selectNode(null)
+  }
 
   return (
     <div className="w-full h-full relative">
@@ -83,7 +42,7 @@ function FlowCanvasInner() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        className="bg-background"
+        className="bg-background react-flow"
         defaultEdgeOptions={{
           animated: true,
           style: { strokeWidth: 2 },
@@ -91,6 +50,7 @@ function FlowCanvasInner() {
         connectionLineStyle={{ strokeWidth: 2 }}
         snapToGrid
         snapGrid={[15, 15]}
+        onPaneClick={handleCloseSettings}
       >
         <Background
           color="var(--color-muted-foreground)"
@@ -112,13 +72,17 @@ function FlowCanvasInner() {
           zoomable
         />
       </ReactFlow>
-      
-      <FlowControls
-        onAddNode={addNode}
-        onDeleteSelected={deleteSelectedNodes}
-        onClearAll={clearAll}
-        selectedNodes={selectedNodes}
-      />
+
+      <FlowControls />
+
+      {selectedNodeId && selectedNode && (
+        <NodeSettingsPanel
+          nodeData={selectedNode.data}
+          nodeId={selectedNodeId}
+          onClose={handleCloseSettings}
+          onUpdateNode={updateNode}
+        />
+      )}
     </div>
   )
 }

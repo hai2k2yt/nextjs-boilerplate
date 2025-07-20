@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useSession, signIn, signOut } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { Menu, X, Bell, Search, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -127,7 +127,7 @@ export function Navigation({ onSidebarToggle, showSidebarToggle = false }: Navig
               </Button>
             </div>
           ) : (
-            <Button onClick={() => signIn()} className="hidden md:flex">
+            <Button onClick={() => window.location.href = '/auth'} className="hidden md:flex">
               Sign In
             </Button>
           )}
@@ -199,7 +199,7 @@ export function Navigation({ onSidebarToggle, showSidebarToggle = false }: Navig
                 <Button
                   className="w-full"
                   onClick={() => {
-                    signIn()
+                    window.location.href = '/auth'
                     setIsOpen(false)
                   }}
                 >

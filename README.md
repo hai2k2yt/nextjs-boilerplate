@@ -10,7 +10,7 @@ A modern Next.js 15 boilerplate with React 19, TypeScript, and essential develop
 - **Tailwind CSS v4** for styling
 - **shadcn/ui** components with Radix UI primitives
 - **tRPC** for end-to-end type safety
-- **Prisma ORM** with SQLite database
+- **Prisma ORM** with PostgreSQL (Supabase)
 - **NextAuth.js** for authentication
 - **React Hook Form** with Zod validation
 - **Framer Motion** for animations
@@ -27,13 +27,19 @@ npm install
 cp .env.example .env
 ```
 
-3. Set up the database:
+3. Configure Supabase:
+   - Create a new project at [supabase.com](https://supabase.com)
+   - Go to Settings > Database and copy your connection string
+   - Update `DATABASE_URL` in your `.env` file with the Supabase connection string
+   - Format: `postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres`
+
+4. Set up the database:
 ```bash
 npm run db:push
 npm run db:seed
 ```
 
-4. Start the development server:
+5. Start the development server:
 ```bash
 npm run dev
 ```

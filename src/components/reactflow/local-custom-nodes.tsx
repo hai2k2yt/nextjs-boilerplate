@@ -2,10 +2,10 @@ import { memo } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Badge } from '@/components/ui/badge'
 import { CustomNode } from './node-types'
-import { useRemoteCollaborativeFlowStore } from '@/stores/collaborative-flow-store'
+import { useLocalFlowStore } from '@/stores/flow-store'
 
-export const CollaborativeInputNode = memo(({ data, id }: NodeProps<CustomNode>) => {
-  const selectNode = useRemoteCollaborativeFlowStore((state) => state.selectNode)
+export const LocalInputNode = memo(({ data, id }: NodeProps<CustomNode>) => {
+  const selectNode = useLocalFlowStore((state) => state.selectNode)
 
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -47,10 +47,10 @@ export const CollaborativeInputNode = memo(({ data, id }: NodeProps<CustomNode>)
   )
 })
 
-CollaborativeInputNode.displayName = 'CollaborativeInputNode'
+LocalInputNode.displayName = 'LocalInputNode'
 
-export const CollaborativeDefaultNode = memo(({ data, id }: NodeProps<CustomNode>) => {
-  const selectNode = useRemoteCollaborativeFlowStore((state) => state.selectNode)
+export const LocalDefaultNode = memo(({ data, id }: NodeProps<CustomNode>) => {
+  const selectNode = useLocalFlowStore((state) => state.selectNode)
 
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -97,10 +97,10 @@ export const CollaborativeDefaultNode = memo(({ data, id }: NodeProps<CustomNode
   )
 })
 
-CollaborativeDefaultNode.displayName = 'CollaborativeDefaultNode'
+LocalDefaultNode.displayName = 'LocalDefaultNode'
 
-export const CollaborativeOutputNode = memo(({ data, id }: NodeProps<CustomNode>) => {
-  const selectNode = useRemoteCollaborativeFlowStore((state) => state.selectNode)
+export const LocalOutputNode = memo(({ data, id }: NodeProps<CustomNode>) => {
+  const selectNode = useLocalFlowStore((state) => state.selectNode)
 
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -142,10 +142,10 @@ export const CollaborativeOutputNode = memo(({ data, id }: NodeProps<CustomNode>
   )
 })
 
-CollaborativeOutputNode.displayName = 'CollaborativeOutputNode'
+LocalOutputNode.displayName = 'LocalOutputNode'
 
-export const collaborativeNodeTypes = {
-  input: CollaborativeInputNode,
-  default: CollaborativeDefaultNode,
-  output: CollaborativeOutputNode,
+export const localNodeTypes = {
+  input: LocalInputNode,
+  default: LocalDefaultNode,
+  output: LocalOutputNode,
 }

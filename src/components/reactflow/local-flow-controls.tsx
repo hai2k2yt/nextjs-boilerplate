@@ -5,19 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
-import { useRemoteCollaborativeFlowActions, useRemoteCollaborativeFlowStore } from '@/stores/collaborative-flow-store'
+import { useLocalFlowActions, useLocalFlowStore } from '@/stores/flow-store'
 
-interface CollaborativeFlowControlsProps {
+interface LocalFlowControlsProps {
   className?: string
 }
 
-export function CollaborativeFlowControls({ className }: CollaborativeFlowControlsProps) {
+export function LocalFlowControls({ className }: LocalFlowControlsProps) {
   // Subscribe only to data (React Flow pattern)
-  const selectedNodeId = useRemoteCollaborativeFlowStore((state) => state.selectedNodeId)
+  const selectedNodeId = useLocalFlowStore((state) => state.selectedNodeId)
   const { zoomIn, zoomOut, fitView } = useReactFlow()
 
   // Get stable action references (React Flow pattern)
-  const { addNode, deleteSelectedNodes, clearAll } = useRemoteCollaborativeFlowActions()
+  const { addNode, deleteSelectedNodes, clearAll } = useLocalFlowActions()
 
   const handleZoomIn = useCallback(() => {
     zoomIn({ duration: 300 })

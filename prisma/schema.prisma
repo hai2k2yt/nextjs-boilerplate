@@ -59,6 +59,12 @@ model User {
   accounts      Account[]
   sessions      Session[]
   posts         Post[]    @relation("UserPosts")
+
+  // React Flow room relations
+  ownedFlowRooms      FlowRoom[]              @relation("FlowRoomOwner")
+  flowRoomParticipant FlowRoomParticipant[]   @relation("FlowRoomParticipants")
+  sentInvitations     FlowRoomInvitation[]    @relation("InvitationsSent")
+  receivedInvitations FlowRoomInvitation[]    @relation("InvitationsReceived")
 }
 
 enum UserRole {
@@ -72,4 +78,105 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// React Flow Collaboration Models
+model FlowRoom {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     String
+  owner       User     @relation("FlowRoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Store the current flow data as JSON
+  flowData    Json?    // Contains nodes, edges, and viewport
+
+  // Collaboration settings
+  isPublic    Boolean  @default(false)
+
+  // Relations
+  participants FlowRoomParticipant[]
+  invitations  FlowRoomInvitation[]
+
+  @@index([ownerId])
+}
+
+model FlowRoomParticipant {
+  id       String   @id @default(cuid())
+  roomId   String
+  userId   String
+  role     ParticipantRole @default(VIEWER)
+  joinedAt DateTime @default(now())
+
+  room     FlowRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User     @relation("FlowRoomParticipants", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+enum ParticipantRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+// Room invitation system
+model FlowRoomInvitation {
+  id        String   @id @default(cuid())
+  roomId    String
+  inviterId String
+  inviteeId String?  // Null if invitation is by email to non-user
+  email     String?  // Email for invitations to non-users
+  status    InvitationStatus @default(PENDING)
+  role      ParticipantRole @default(VIEWER)
+  message   String?  // Optional invitation message
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime? // Optional expiration date
+
+  room     FlowRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  inviter  User     @relation("InvitationsSent", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee  User?    @relation("InvitationsReceived", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, inviteeId])
+  @@unique([roomId, email])
+  @@index([inviteeId])
+  @@index([email])
+  @@index([status])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+// Audit Log for persistent logging
+model AuditLog {
+  id            String   @id @default(cuid())
+  timestamp     DateTime @default(now())
+  level         String   // ERROR, WARN, INFO, DEBUG
+  category      String   // WEBSOCKET, REDIS, DATABASE, etc.
+  message       String
+  metadata      Json?    // Additional structured data
+  correlationId String?  // For tracing related events
+  userId        String?  // User associated with the event
+  roomId        String?  // Room associated with the event
+  duration      Float?   // Operation duration in milliseconds
+  error         Json?    // Error details if applicable
+  createdAt     DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([level])
+  @@index([category])
+  @@index([userId])
+  @@index([roomId])
+  @@index([correlationId])
+  @@index([timestamp, level])
+  @@index([timestamp, category])
 }

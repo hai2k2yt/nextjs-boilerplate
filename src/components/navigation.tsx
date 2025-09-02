@@ -4,10 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { motion } from 'framer-motion'
-import { Menu, X, Bell, Search, User } from 'lucide-react'
+import { Menu, X, Search, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { InvitationNotifications } from '@/components/layout/invitation-notifications'
 
 interface NavigationProps {
   onSidebarToggle?: () => void
@@ -101,13 +102,7 @@ export function Navigation({ onSidebarToggle, showSidebarToggle = false }: Navig
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-              3
-            </span>
-            <span className="sr-only">Notifications</span>
-          </Button>
+          {session && <InvitationNotifications />}
 
           {/* Theme toggle */}
           <ThemeToggle />

@@ -25,7 +25,7 @@ interface FlowActions {
 }
 
 // Create the store with separated state and actions
-export const useFlowStore = create<FlowState & FlowActions>()(
+export const useLocalFlowStore = create<FlowState & FlowActions>()(
   devtools(
     (set, get) => ({
       // Initial state only
@@ -144,9 +144,9 @@ export const useFlowStore = create<FlowState & FlowActions>()(
 )
 
 // Selectors for better performance
-export const useSelectedNode = () => {
-  const selectedNodeId = useFlowStore((state) => state.selectedNodeId)
-  const nodes = useFlowStore((state) => state.nodes)
+export const useLocalSelectedNode = () => {
+  const selectedNodeId = useLocalFlowStore((state) => state.selectedNodeId)
+  const nodes = useLocalFlowStore((state) => state.nodes)
 
   // Use useMemo to prevent recalculating on every render
   return useMemo(() => {
@@ -154,8 +154,8 @@ export const useSelectedNode = () => {
   }, [selectedNodeId, nodes])
 }
 
-export const useSelectedNodes = () => {
-  const nodes = useFlowStore((state) => state.nodes)
+export const useLocalSelectedNodes = () => {
+  const nodes = useLocalFlowStore((state) => state.nodes)
 
   // Use useMemo to prevent creating new array on every render
   // Only recalculate when nodes array actually changes
@@ -166,16 +166,16 @@ export const useSelectedNodes = () => {
 
 // Stable action creators (following React Flow pattern)
 // These create stable references that don't change on re-renders
-export const useFlowActions = () => {
+export const useLocalFlowActions = () => {
   // Use individual selectors to get stable references to actions
-  const addNode = useFlowStore((state) => state.addNode)
-  const deleteSelectedNodes = useFlowStore((state) => state.deleteSelectedNodes)
-  const clearAll = useFlowStore((state) => state.clearAll)
-  const updateNode = useFlowStore((state) => state.updateNode)
-  const selectNode = useFlowStore((state) => state.selectNode)
-  const onNodesChange = useFlowStore((state) => state.onNodesChange)
-  const onEdgesChange = useFlowStore((state) => state.onEdgesChange)
-  const onConnect = useFlowStore((state) => state.onConnect)
+  const addNode = useLocalFlowStore((state) => state.addNode)
+  const deleteSelectedNodes = useLocalFlowStore((state) => state.deleteSelectedNodes)
+  const clearAll = useLocalFlowStore((state) => state.clearAll)
+  const updateNode = useLocalFlowStore((state) => state.updateNode)
+  const selectNode = useLocalFlowStore((state) => state.selectNode)
+  const onNodesChange = useLocalFlowStore((state) => state.onNodesChange)
+  const onEdgesChange = useLocalFlowStore((state) => state.onEdgesChange)
+  const onConnect = useLocalFlowStore((state) => state.onConnect)
 
   // Use useMemo to ensure stable reference identity for the returned object
   return useMemo(() => ({

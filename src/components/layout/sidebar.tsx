@@ -24,6 +24,9 @@ import {
   Archive,
   Workflow,
   FileText,
+  Share2,
+  Monitor,
+  Activity,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -47,11 +50,23 @@ const navigationItems = [
     ],
   },
   {
+    title: 'Monitoring',
+    items: [
+      { title: 'Log Dashboard', href: '/logs/dashboard', icon: Monitor },
+      { title: 'System Logs', href: '/logs', icon: Activity },
+      { title: 'Log Statistics', href: '/logs/statistics', icon: BarChart3 },
+      { title: 'Log Testing', href: '/logs/test', icon: Settings },
+    ],
+  },
+  {
     title: 'Content',
     items: [
       { title: 'Calendar', href: '/calendar', icon: Calendar },
       { title: 'Mail', href: '/mail', icon: Mail },
       { title: 'React Flow', href: '/reactflow', icon: Workflow },
+      { title: 'Local Collaborative', href: '/reactflow/local-collaborative', icon: Monitor },
+      { title: 'Remote Collaborative', href: '/reactflow/remote-collaborative', icon: Share2 },
+      { title: 'Flow Rooms', href: '/flow', icon: Users },
       { title: 'Forms', href: '/forms', icon: FileText },
     ],
   },

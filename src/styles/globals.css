@@ -91,6 +91,7 @@
 .react-flow__node-group {
   width: auto !important;
   min-width: auto !important;
+  padding: 0 !important;
 }
 
 /* React Flow CSS variables for theme support */

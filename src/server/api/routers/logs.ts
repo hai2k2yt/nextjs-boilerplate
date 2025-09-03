@@ -134,6 +134,52 @@ export const logsRouter = createTRPCRouter({
       return { success: true, message: 'Logs cleared successfully' }
     }),
 
+  // Get audit logs from database
+  getAuditLogs: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(1000).default(100),
+      category: z.string().optional(),
+      roomId: z.string().optional(),
+      userId: z.string().optional(),
+      level: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const auditLogs = await ctx.db.auditLog.findMany({
+        where: {
+          ...(input.category && { category: input.category }),
+          ...(input.roomId && { roomId: input.roomId }),
+          ...(input.userId && { userId: input.userId }),
+          ...(input.level && { level: input.level }),
+        },
+        orderBy: { timestamp: 'desc' },
+        take: input.limit,
+      })
+
+      return auditLogs
+    }),
+
+  // Get React Flow specific audit logs
+  getFlowActionLogs: publicProcedure
+    .input(z.object({
+      roomId: z.string().optional(),
+      limit: z.number().min(1).max(500).default(100),
+    }))
+    .query(async ({ ctx, input }) => {
+      const flowLogs = await ctx.db.auditLog.findMany({
+        where: {
+          category: 'collaboration',
+          ...(input.roomId && { roomId: input.roomId }),
+          message: {
+            contains: 'Collaboration'
+          }
+        },
+        orderBy: { timestamp: 'desc' },
+        take: input.limit,
+      })
+
+      return flowLogs
+    }),
+
 
 
 

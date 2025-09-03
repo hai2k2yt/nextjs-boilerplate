@@ -11,7 +11,7 @@ interface DatabaseLoggerConfig {
 }
 
 const DEFAULT_CONFIG: DatabaseLoggerConfig = {
-  enabled: false, // Disable by default to avoid database errors during development
+  enabled: true, // Enable database logging for React Flow actions
   batchSize: 50, // Batch insert 50 logs at a time
   flushInterval: 30000, // Flush every 30 seconds
 }
@@ -166,6 +166,14 @@ export function getDatabaseLogger(): DatabaseLogger {
     _databaseLogger = new DatabaseLogger()
   }
   return _databaseLogger
+}
+
+// Initialize database logger for React Flow actions
+export function initializeDatabaseLogger() {
+  console.log('[DatabaseLogger] Initializing database logger for React Flow actions')
+  const logger = getDatabaseLogger()
+  console.log('[DatabaseLogger] Status:', logger.getStatus())
+  return logger
 }
 
 // Export configuration for customization

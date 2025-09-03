@@ -17,6 +17,7 @@ import {
 } from '@/lib/websocket'
 import { COLLABORATION_CONSTANTS, WEBSOCKET_EVENTS, FLOW_CHANGE_TYPES } from '@/lib/constants/collaboration'
 import { generateUniqueNodeId, fixDuplicateNodeIds, validateUniqueNodeIds } from '@/lib/utils/node-id-utils'
+import { logger } from '@/lib/logger-init'
 
 export interface Participant {
   userId: string
@@ -58,6 +59,7 @@ interface FlowActions {
   connectToRoom: (roomId: string, userId: string) => Promise<void>
   disconnectFromRoom: () => void
   updateCursor: (x: number, y: number) => void
+  updateUserPermissions: (userRole: string) => void
   loadRoomData: (flowData: { nodes: CustomNode[]; edges: CustomEdge[]; viewport?: FlowViewport }) => void
   handleRemoteChange: (event: FlowChangeEvent) => void
   setParticipants: (participants: Participant[]) => void
@@ -216,7 +218,18 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
           if (!state.canEdit) return
 
           const newEdges = addEdge(connection, state.edges) as CustomEdge[]
+          const newEdge = newEdges[newEdges.length - 1] // The newly added edge
           set({ edges: newEdges }, false, 'onConnect')
+
+          // Log the action
+          logger.logCollaborationEvent('edge_created', state.socket?.id || 'unknown', state.roomId || '', {
+            edgeId: newEdge?.id,
+            source: connection.source,
+            target: connection.target,
+            sourceHandle: connection.sourceHandle,
+            targetHandle: connection.targetHandle,
+            totalEdges: newEdges.length
+          })
 
           // Send change immediately for connections
           if (state.socket && state.roomId) {
@@ -253,6 +266,14 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
             nodeIdCounter: state.nodeIdCounter + 1
           }, false, 'addNode')
 
+          // Log the action
+          logger.logCollaborationEvent('node_added', state.socket?.id || 'unknown', state.roomId || '', {
+            nodeId: newNodeId,
+            nodeType: type,
+            position: newNode.position,
+            totalNodes: newNodes.length
+          })
+
           // Send change immediately for new nodes
           if (state.socket && state.roomId) {
             state.socket.emit(WEBSOCKET_EVENTS.FLOW_CHANGE, {
@@ -275,6 +296,14 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
 
           set({ nodes: newNodes }, false, 'updateNode')
 
+          // Log the action
+          const updatedNode = newNodes.find(node => node.id === nodeId)
+          logger.logCollaborationEvent('node_updated', state.socket?.id || 'unknown', state.roomId || '', {
+            nodeId,
+            updates: Object.keys(updates),
+            nodeData: updatedNode?.data
+          })
+
           // Send individual change for node data updates (debounced for frequent updates like typing)
           const nodeChange: NodeChange = {
             id: nodeId,
@@ -288,7 +317,11 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
           const state = get()
           if (!state.canEdit || !state.selectedNodeId) return
 
+          const deletedNodeId = state.selectedNodeId
           const newNodes = state.nodes.filter(node => node.id !== state.selectedNodeId)
+          const deletedEdges = state.edges.filter(edge =>
+            edge.source === state.selectedNodeId || edge.target === state.selectedNodeId
+          )
           const newEdges = state.edges.filter(edge =>
             edge.source !== state.selectedNodeId && edge.target !== state.selectedNodeId
           )
@@ -298,6 +331,14 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
             edges: newEdges,
             selectedNodeId: null
           }, false, 'deleteSelectedNodes')
+
+          // Log the action
+          logger.logCollaborationEvent('node_deleted', state.socket?.id || 'unknown', state.roomId || '', {
+            deletedNodeId,
+            deletedEdgeIds: deletedEdges.map(e => e.id),
+            remainingNodes: newNodes.length,
+            remainingEdges: newEdges.length
+          })
 
           // Send changes immediately for deletions
           if (state.socket && state.roomId) {
@@ -322,12 +363,21 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
           const state = get()
           if (!state.canEdit) return
 
+          const previousNodeCount = state.nodes.length
+          const previousEdgeCount = state.edges.length
+
           set({
             nodes: [],
             edges: [],
             selectedNodeId: null,
             nodeIdCounter: 1
           }, false, 'clearAll')
+
+          // Log the action
+          logger.logCollaborationEvent('flow_cleared', state.socket?.id || 'unknown', state.roomId || '', {
+            clearedNodes: previousNodeCount,
+            clearedEdges: previousEdgeCount
+          })
 
           // Send clear changes
           if (state.socket && state.roomId) {
@@ -389,8 +439,17 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
                 socket.emit(WEBSOCKET_EVENTS.JOIN_ROOM, { roomId, token: userId })
               })
 
-              socket.on(WEBSOCKET_EVENTS.ROOM_JOINED, (data: { roomId: string; flowData: any; participants: Participant[] }) => {
-                console.log('Joined room:', data.roomId)
+              socket.on(WEBSOCKET_EVENTS.ROOM_JOINED, (data: { roomId: string; flowData: any; participants: Participant[]; userRole: string }) => {
+                console.log('Joined room:', data.roomId, 'with role:', data.userRole)
+
+                // Log room join
+                logger.logCollaborationEvent('room_joined', userId, data.roomId, {
+                  userRole: data.userRole,
+                  participantCount: data.participants.length,
+                  hasFlowData: !!data.flowData,
+                  nodeCount: data.flowData?.nodes?.length || 0,
+                  edgeCount: data.flowData?.edges?.length || 0
+                })
 
                 // Load room data
                 if (data.flowData) {
@@ -400,9 +459,14 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
                 // Set participants
                 get().setParticipants(data.participants)
 
+                // Set user permissions based on role
+                const isOwner = data.userRole === 'OWNER'
+                const canEdit = data.userRole === 'OWNER' || data.userRole === 'EDITOR'
+
                 set({
                   isConnected: true,
-                  canEdit: true // Will be updated based on actual permissions
+                  isOwner,
+                  canEdit
                 }, false, 'room_joined')
 
                 resolve()
@@ -460,6 +524,15 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
         disconnectFromRoom: () => {
           const state = get()
 
+          // Log disconnect
+          if (state.roomId) {
+            logger.logCollaborationEvent('room_disconnected', state.socket?.id || 'unknown', state.roomId, {
+              wasOwner: state.isOwner,
+              hadEditAccess: state.canEdit,
+              participantCount: state.participants.length
+            })
+          }
+
           // Clear cursor queue before disconnecting
           if (state.roomId) {
             clearCursorQueue(state.roomId)
@@ -486,6 +559,17 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
             // Queue cursor position for batched sending (200ms intervals)
             queueCursorUpdate(state.socket, state.roomId, x, y)
           }
+        },
+
+        // Update user permissions
+        updateUserPermissions: (userRole: string) => {
+          const isOwner = userRole === 'OWNER'
+          const canEdit = userRole === 'OWNER' || userRole === 'EDITOR'
+
+          set({
+            isOwner,
+            canEdit
+          }, false, 'updateUserPermissions')
         },
 
         loadRoomData: (flowData: { nodes: CustomNode[]; edges: CustomEdge[]; viewport?: FlowViewport }) => {
@@ -640,7 +724,8 @@ export const useRemoteCollaborativeFlowActions = () => {
     clearAll: state.clearAll,
     connectToRoom: state.connectToRoom,
     disconnectFromRoom: state.disconnectFromRoom,
-    updateCursor: state.updateCursor
+    updateCursor: state.updateCursor,
+    updateUserPermissions: state.updateUserPermissions
   })))
 }
 

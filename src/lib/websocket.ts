@@ -5,6 +5,7 @@ import { flowRedisManager, ParticipantInfo } from '@/lib/redis'
 import { CustomNode, CustomEdge } from '@/components/reactflow/node-types'
 import { COLLABORATION_CONSTANTS, WEBSOCKET_EVENTS, FLOW_CHANGE_TYPES } from '@/lib/constants/collaboration'
 import { logger, LogCategory } from '@/lib/logger-init'
+import { initializeDatabaseLogger } from '@/lib/database-logger'
 
 // Define proper types for React Flow data
 export interface FlowViewport {
@@ -95,6 +96,9 @@ export class FlowWebSocketManager {
       pingInterval: 25000
     })
 
+    // Initialize database logger for React Flow actions
+    initializeDatabaseLogger()
+
     this.setupSocketHandlers()
   }
 
@@ -153,7 +157,8 @@ export class FlowWebSocketManager {
           socket.emit(WEBSOCKET_EVENTS.ROOM_JOINED, {
             roomId,
             flowData: roomData?.flowData,
-            participants: participants.filter(p => p.userId !== user.id)
+            participants: participants.filter(p => p.userId !== user.id),
+            userRole: participant.role
           })
 
           // Notify other participants
@@ -203,9 +208,15 @@ export class FlowWebSocketManager {
           // Queue for delayed database sync (30 seconds)
           this.queueDatabaseSync(socket.roomId, flowEvent)
 
+          // Log detailed React Flow action
+          const actionDetails = this.getActionDetails(event.type, event.data)
           logger.logCollaborationEvent('flow_change_received', socket.userId, socket.roomId, {
             changeType: event.type,
-            timestamp: flowEvent.timestamp
+            timestamp: flowEvent.timestamp,
+            action: actionDetails.action,
+            details: actionDetails.details,
+            nodeCount: actionDetails.nodeCount,
+            edgeCount: actionDetails.edgeCount
           })
           timer()
 
@@ -408,12 +419,17 @@ export class FlowWebSocketManager {
       this.databaseQueues.delete(roomId)
       this.databaseTimers.delete(roomId)
 
+      // Log detailed database sync completion
+      const syncSummary = this.getSyncSummary(events)
       logger.info(LogCategory.DATABASE, `Database sync completed`, {
         roomId,
         eventCount: events.length,
-        operation: 'batch_sync_complete'
+        operation: 'batch_sync_complete',
+        syncSummary,
+        totalNodes: updatedFlowData.nodes.length,
+        totalEdges: updatedFlowData.edges.length
       })
-      console.log(`Synced ${events.length} changes to database for room ${roomId}`)
+      console.log(`Synced ${events.length} changes to database for room ${roomId}:`, syncSummary)
       timer()
 
     } catch (error) {
@@ -1155,6 +1171,118 @@ export class FlowWebSocketManager {
     } catch {
       return false
     }
+  }
+
+  private getActionDetails(changeType: string, data: FlowEventData) {
+    let action = 'unknown'
+    let details: Record<string, any> = {}
+    let nodeCount = 0
+    let edgeCount = 0
+
+    switch (changeType) {
+      case FLOW_CHANGE_TYPES.BULK_NODES:
+        const bulkNodesData = data as BulkNodesData
+        nodeCount = bulkNodesData.nodes.length
+        action = nodeCount === 0 ? 'clear_all_nodes' : 'bulk_update_nodes'
+        details = { nodeCount }
+        break
+
+      case FLOW_CHANGE_TYPES.GRANULAR_NODES:
+        const granularNodesData = data as GranularNodeChangesData
+        const changes = granularNodesData.changes
+        nodeCount = changes.length
+
+        // Analyze the types of changes
+        const changeTypes = changes.map(change => change.type)
+        const uniqueChangeTypes = [...new Set(changeTypes)]
+
+        if (uniqueChangeTypes.includes('add')) {
+          action = 'add_nodes'
+        } else if (uniqueChangeTypes.includes('remove')) {
+          action = 'delete_nodes'
+        } else if (uniqueChangeTypes.includes('position')) {
+          action = 'move_nodes'
+        } else if (uniqueChangeTypes.includes('replace')) {
+          action = 'update_nodes'
+        } else {
+          action = 'modify_nodes'
+        }
+
+        details = {
+          changeTypes: uniqueChangeTypes,
+          nodeCount,
+          nodeIds: changes.map(c => this.getNodeChangeId(c))
+        }
+        break
+
+      case FLOW_CHANGE_TYPES.BULK_EDGES:
+        const bulkEdgesData = data as BulkEdgesData
+        edgeCount = bulkEdgesData.edges.length
+        action = edgeCount === 0 ? 'clear_all_edges' : 'bulk_update_edges'
+        details = { edgeCount }
+        break
+
+      case FLOW_CHANGE_TYPES.GRANULAR_EDGES:
+        const granularEdgesData = data as GranularEdgeChangesData
+        const edgeChanges = granularEdgesData.changes
+        edgeCount = edgeChanges.length
+
+        const edgeChangeTypes = edgeChanges.map(change => change.type)
+        const uniqueEdgeChangeTypes = [...new Set(edgeChangeTypes)]
+
+        if (uniqueEdgeChangeTypes.includes('add')) {
+          action = 'add_edges'
+        } else if (uniqueEdgeChangeTypes.includes('remove')) {
+          action = 'delete_edges'
+        } else {
+          action = 'modify_edges'
+        }
+
+        details = {
+          changeTypes: uniqueEdgeChangeTypes,
+          edgeCount,
+          edgeIds: edgeChanges.map(c => this.getEdgeChangeId(c))
+        }
+        break
+
+      case FLOW_CHANGE_TYPES.CURSOR_MOVE:
+        action = 'cursor_move'
+        const cursorData = data as CursorMoveData
+        details = { x: cursorData.x, y: cursorData.y }
+        break
+    }
+
+    return { action, details, nodeCount, edgeCount }
+  }
+
+  private getSyncSummary(events: FlowChangeEvent[]) {
+    const summary = {
+      nodeActions: [] as string[],
+      edgeActions: [] as string[],
+      totalNodeChanges: 0,
+      totalEdgeChanges: 0,
+      actionCounts: {} as Record<string, number>
+    }
+
+    events.forEach(event => {
+      const actionDetails = this.getActionDetails(event.type, event.data)
+      const action = actionDetails.action
+
+      // Count actions
+      summary.actionCounts[action] = (summary.actionCounts[action] || 0) + 1
+
+      // Track node and edge changes
+      if (action.includes('node')) {
+        summary.nodeActions.push(action)
+        summary.totalNodeChanges += actionDetails.nodeCount
+      }
+      if (action.includes('edge')) {
+        summary.edgeActions.push(action)
+        summary.totalEdgeChanges += actionDetails.edgeCount
+      }
+    })
+
+    return summary
   }
 
   private async getRoomDataWithFallback(roomId: string): Promise<RoomData | null> {

@@ -17,7 +17,7 @@ import {
 } from '@/lib/websocket'
 import { COLLABORATION_CONSTANTS, WEBSOCKET_EVENTS, FLOW_CHANGE_TYPES } from '@/lib/constants/collaboration'
 import { generateUniqueNodeId, fixDuplicateNodeIds, validateUniqueNodeIds } from '@/lib/utils/node-id-utils'
-import { logger } from '@/lib/logger-init'
+// Database logging removed - using console logging for client-side actions
 
 export interface Participant {
   userId: string
@@ -222,13 +222,15 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
           set({ edges: newEdges }, false, 'onConnect')
 
           // Log the action
-          logger.logCollaborationEvent('edge_created', state.socket?.id || 'unknown', state.roomId || '', {
+          console.log('Edge created in collaborative flow', {
             edgeId: newEdge?.id,
             source: connection.source,
             target: connection.target,
             sourceHandle: connection.sourceHandle,
             targetHandle: connection.targetHandle,
-            totalEdges: newEdges.length
+            totalEdges: newEdges.length,
+            userId: state.socket?.id || 'unknown',
+            roomId: state.roomId || ''
           })
 
           // Send change immediately for connections
@@ -267,11 +269,13 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
           }, false, 'addNode')
 
           // Log the action
-          logger.logCollaborationEvent('node_added', state.socket?.id || 'unknown', state.roomId || '', {
+          console.log(`Node added: ${type}`, {
             nodeId: newNodeId,
             nodeType: type,
             position: newNode.position,
-            totalNodes: newNodes.length
+            totalNodes: newNodes.length,
+            userId: state.socket?.id || 'unknown',
+            roomId: state.roomId || ''
           })
 
           // Send change immediately for new nodes
@@ -298,10 +302,12 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
 
           // Log the action
           const updatedNode = newNodes.find(node => node.id === nodeId)
-          logger.logCollaborationEvent('node_updated', state.socket?.id || 'unknown', state.roomId || '', {
+          console.log('Node updated in collaborative flow', {
             nodeId,
             updates: Object.keys(updates),
-            nodeData: updatedNode?.data
+            nodeData: updatedNode?.data,
+            userId: state.socket?.id || 'unknown',
+            roomId: state.roomId || ''
           })
 
           // Send individual change for node data updates (debounced for frequent updates like typing)
@@ -333,11 +339,13 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
           }, false, 'deleteSelectedNodes')
 
           // Log the action
-          logger.logCollaborationEvent('node_deleted', state.socket?.id || 'unknown', state.roomId || '', {
+          console.log('Node deleted in collaborative flow', {
             deletedNodeId,
             deletedEdgeIds: deletedEdges.map(e => e.id),
             remainingNodes: newNodes.length,
-            remainingEdges: newEdges.length
+            remainingEdges: newEdges.length,
+            userId: state.socket?.id || 'unknown',
+            roomId: state.roomId || ''
           })
 
           // Send changes immediately for deletions
@@ -374,9 +382,11 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
           }, false, 'clearAll')
 
           // Log the action
-          logger.logCollaborationEvent('flow_cleared', state.socket?.id || 'unknown', state.roomId || '', {
+          console.log('Flow cleared in collaborative session', {
             clearedNodes: previousNodeCount,
-            clearedEdges: previousEdgeCount
+            clearedEdges: previousEdgeCount,
+            userId: state.socket?.id || 'unknown',
+            roomId: state.roomId || ''
           })
 
           // Send clear changes
@@ -443,7 +453,9 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
                 console.log('Joined room:', data.roomId, 'with role:', data.userRole)
 
                 // Log room join
-                logger.logCollaborationEvent('room_joined', userId, data.roomId, {
+                console.log('User joined collaborative room', {
+                  userId: userId,
+                  roomId: data.roomId,
                   userRole: data.userRole,
                   participantCount: data.participants.length,
                   hasFlowData: !!data.flowData,
@@ -526,7 +538,9 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
 
           // Log disconnect
           if (state.roomId) {
-            logger.logCollaborationEvent('room_disconnected', state.socket?.id || 'unknown', state.roomId, {
+            console.log('User disconnected from collaborative room', {
+              userId: state.socket?.id || 'unknown',
+              roomId: state.roomId,
               wasOwner: state.isOwner,
               hadEditAccess: state.canEdit,
               participantCount: state.participants.length

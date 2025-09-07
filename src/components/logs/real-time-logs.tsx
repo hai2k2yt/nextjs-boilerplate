@@ -18,9 +18,38 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import { trpc } from '@/lib/trpc'
-import { LogLevel, LogCategory, type LogEntry } from '@/lib/logger-init'
 import { formatDistanceToNow } from 'date-fns'
+
+// Define log enums locally
+enum LogLevel {
+  ERROR = 'ERROR',
+  WARN = 'WARN',
+  INFO = 'INFO',
+  DEBUG = 'DEBUG'
+}
+
+enum LogCategory {
+  SYSTEM = 'system',
+  WEBSOCKET = 'websocket',
+  REDIS = 'redis',
+  DATABASE = 'database',
+  COLLABORATION = 'collaboration',
+  PERFORMANCE = 'performance',
+  SECURITY = 'security'
+}
+
+interface LogEntry {
+  id: string
+  timestamp: Date
+  level: LogLevel
+  category: LogCategory
+  message: string
+  metadata: any // JsonValue from Prisma
+  userId: string | null
+  roomId: string | null
+}
 
 interface RealTimeLogsProps {
   maxLogs?: number
@@ -39,10 +68,10 @@ export function RealTimeLogs({ maxLogs = 50, filters }: RealTimeLogsProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Fallback to polling if subscriptions are not available
-  const { data: polledLogs } = trpc.logs.getLogs.useQuery({
-    level: filters?.level,
-    category: filters?.category,
+  // Poll database for logs (since we're using database-only logging)
+  const { data: polledLogs, isLoading, isFetching } = trpc.logs.getLogs.useQuery({
+    level: filters?.level as any,
+    category: filters?.category as any,
     userId: filters?.userId,
     roomId: filters?.roomId,
     limit: maxLogs,
@@ -52,22 +81,10 @@ export function RealTimeLogs({ maxLogs = 50, filters }: RealTimeLogsProps) {
 
   // Update logs when polled data changes
   useEffect(() => {
-    if (polledLogs && !isPaused) {
+    if (polledLogs) {
       setLogs(polledLogs)
     }
-  }, [polledLogs, isPaused])
-
-  // Try to subscribe to real-time logs (fallback gracefully if not supported)
-  useEffect(() => {
-    // This is a placeholder for real-time subscription
-    // In a production environment, you would implement WebSocket subscriptions here
-    const interval = setInterval(() => {
-      // Trigger a refetch to simulate real-time updates
-      // This will be replaced by actual WebSocket subscriptions
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [filters, isPaused])
+  }, [polledLogs])
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
@@ -162,7 +179,13 @@ export function RealTimeLogs({ maxLogs = 50, filters }: RealTimeLogsProps) {
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[500px] px-6 pb-6" ref={scrollAreaRef}>
-          {logs.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-3 mt-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <RealTimeLogSkeleton key={i} />
+              ))}
+            </div>
+          ) : logs.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-muted-foreground">
               <ScrollText className="h-8 w-8 mr-2" />
               Waiting for log events...
@@ -190,11 +213,7 @@ export function RealTimeLogs({ maxLogs = 50, filters }: RealTimeLogsProps) {
                             <span className="text-xs text-muted-foreground">
                               {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                             </span>
-                            {log.duration && (
-                              <Badge variant="outline" className="text-xs">
-                                {log.duration}ms
-                              </Badge>
-                            )}
+
                           </div>
                           <p className="text-sm font-medium mb-1">{log.message}</p>
                           {(log.userId || log.roomId) && (
@@ -213,13 +232,7 @@ export function RealTimeLogs({ maxLogs = 50, filters }: RealTimeLogsProps) {
                               </pre>
                             </details>
                           )}
-                          {log.error && (
-                            <div className="mt-2 p-2 bg-red-100 border border-red-200 rounded text-xs">
-                              <div className="font-medium text-red-800">
-                                {log.error.name}: {log.error.message}
-                              </div>
-                            </div>
-                          )}
+
                         </div>
                       </div>
                     </div>
@@ -227,11 +240,34 @@ export function RealTimeLogs({ maxLogs = 50, filters }: RealTimeLogsProps) {
                 ))}
               </AnimatePresence>
               <div ref={bottomRef} />
+              {isFetching && !isLoading && (
+                <div className="flex items-center justify-center py-2 text-xs text-muted-foreground">
+                  <Activity className="h-3 w-3 mr-1 animate-spin" />
+                  Refreshing logs...
+                </div>
+              )}
             </div>
           )}
         </ScrollArea>
       </CardContent>
     </Card>
+  )
+}
+
+function RealTimeLogSkeleton() {
+  return (
+    <div className="p-3 rounded-lg border-l-4 border-l-gray-300 bg-gray-50 space-y-2">
+      <div className="flex items-center space-x-2">
+        <Skeleton className="h-4 w-4 rounded" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-16" />
+      </div>
+      <Skeleton className="h-4 w-3/4" />
+      <div className="flex items-center space-x-4">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3 w-12" />
+      </div>
+    </div>
   )
 }
 

@@ -54,6 +54,7 @@ const navigationItems = [
     items: [
       { title: 'Log Dashboard', href: '/logs/dashboard', icon: Monitor },
       { title: 'System Logs', href: '/logs', icon: Activity },
+      { title: 'Audit Logs', href: '/audit-logs', icon: FileText },
       { title: 'Log Statistics', href: '/logs/statistics', icon: BarChart3 },
       { title: 'Log Testing', href: '/logs/test', icon: Settings },
     ],

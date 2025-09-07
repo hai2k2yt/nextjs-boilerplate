@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { logger, LogLevel, LogCategory } from '@/lib/logger-init'
+// Only using database logging - no in-memory logger needed
 import { 
   Bug, 
   Info, 
@@ -23,6 +23,24 @@ import {
   Shield
 } from 'lucide-react'
 
+// Define log enums locally
+enum LogLevel {
+  ERROR = 'ERROR',
+  WARN = 'WARN',
+  INFO = 'INFO',
+  DEBUG = 'DEBUG'
+}
+
+enum LogCategory {
+  SYSTEM = 'system',
+  WEBSOCKET = 'websocket',
+  REDIS = 'redis',
+  DATABASE = 'database',
+  COLLABORATION = 'collaboration',
+  PERFORMANCE = 'performance',
+  SECURITY = 'security'
+}
+
 export default function LogTestPage() {
   const { toast } = useToast()
   const [selectedLevel, setSelectedLevel] = useState<LogLevel>(LogLevel.INFO)
@@ -32,7 +50,7 @@ export default function LogTestPage() {
   const [roomId, setRoomId] = useState('')
   const [customMetadata, setCustomMetadata] = useState('')
 
-  const handleGenerateLog = () => {
+  const handleGenerateLog = async () => {
     if (!message.trim()) {
       toast({
         title: 'Error',
@@ -60,20 +78,18 @@ export default function LogTestPage() {
       metadata.testGenerated = true
       metadata.timestamp = new Date().toISOString()
 
-      switch (selectedLevel) {
-        case LogLevel.ERROR:
-          logger.error(selectedCategory, message, metadata)
-          break
-        case LogLevel.WARN:
-          logger.warn(selectedCategory, message, metadata)
-          break
-        case LogLevel.INFO:
-          logger.info(selectedCategory, message, metadata)
-          break
-        case LogLevel.DEBUG:
-          logger.debug(selectedCategory, message, metadata)
-          break
-      }
+      // Save log directly to database
+      await fetch('/api/logs/database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: message,
+          action: selectedCategory,
+          userId: userId || undefined,
+          roomId: roomId || undefined,
+          details: metadata
+        })
+      })
 
       toast({
         title: 'Success',
@@ -92,72 +108,133 @@ export default function LogTestPage() {
     }
   }
 
-  const handleGenerateTestScenario = (scenario: string) => {
-    switch (scenario) {
-      case 'websocket_connection':
-        logger.logWebSocketEvent('client_connected', 'test-user-123', 'test-room-456', {
-          socketId: 'socket-' + Math.random().toString(36).substr(2, 9),
-          userAgent: 'Test Browser',
-          testScenario: true
+  const handleGenerateTestScenario = async (scenario: string) => {
+    try {
+      switch (scenario) {
+        case 'websocket_connection':
+          await fetch('/api/logs/database', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'WebSocket client_connected',
+              action: 'websocket',
+              userId: 'test-user-123',
+              roomId: 'test-room-456',
+              details: { socketId: 'socket-' + Math.random().toString(36).substr(2, 9), userAgent: 'Test Browser', testScenario: true }
+            })
+          })
+          break
+
+        case 'redis_cache_hit':
+          await fetch('/api/logs/database', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'Redis get: flow_room:test-room-123',
+              action: 'redis',
+              details: { operation: 'get', key: 'flow_room:test-room-123', cacheHit: true, duration: 15.5, testScenario: true }
+            })
+          })
+          break
+
+        case 'redis_cache_miss':
+          await fetch('/api/logs/database', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'Redis get: flow_room:test-room-456',
+              action: 'redis',
+              details: { operation: 'get', key: 'flow_room:test-room-456', cacheHit: false, duration: 25.2, testScenario: true }
+            })
+          })
+          break
+
+      case 'database_sync':
+        await fetch('/api/logs/database', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'Database update: flowRoom',
+            action: 'database',
+            details: { operation: 'update', table: 'flowRoom', recordCount: 1, duration: 145.8, testScenario: true }
+          })
         })
         break
 
-      case 'redis_cache_hit':
-        logger.logRedisOperation('get', 'flow_room:test-room-123', true, 15.5)
-        break
-
-      case 'redis_cache_miss':
-        logger.logRedisOperation('get', 'flow_room:test-room-456', false, 25.2)
-        break
-
-      case 'database_sync':
-        logger.logDatabaseOperation('update', 'flowRoom', 1, 145.8)
-        break
-
       case 'collaboration_conflict':
-        logger.logCollaborationEvent('conflict_resolved', 'user-123', 'room-456', {
-          conflictType: 'node_edit',
-          resolution: 'timestamp_based',
-          testScenario: true
+        await fetch('/api/logs/database', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'Collaboration conflict_resolved',
+            action: 'collaboration',
+            userId: 'user-123',
+            roomId: 'room-456',
+            details: { conflictType: 'node_edit', resolution: 'timestamp_based', testScenario: true }
+          })
         })
         break
 
       case 'performance_slow':
-        const slowTimer = logger.startTimer('slow_operation_test')
-        setTimeout(() => {
-          slowTimer()
+        setTimeout(async () => {
+          await fetch('/api/logs/database', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'Operation completed: slow_operation_test',
+              action: 'performance',
+              details: { operation: 'slow_operation_test', duration: 100, testScenario: true }
+            })
+          })
         }, 100) // Simulate 100ms operation
         break
 
       case 'error_scenario':
-        logger.error(LogCategory.SYSTEM, 'Test error scenario', {
-          error: {
-            name: 'TestError',
-            message: 'This is a test error for demonstration',
-            stack: 'TestError: This is a test error\n    at testFunction (test.js:1:1)'
-          },
-          testScenario: true
+        await fetch('/api/logs/database', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'Test error scenario',
+            action: 'system',
+            details: {
+              error: { name: 'TestError', message: 'This is a test error for demonstration' },
+              testScenario: true
+            }
+          })
         })
         break
 
       case 'batch_logs':
         // Generate multiple logs quickly
+        const batchId = 'batch-' + Date.now()
         for (let i = 0; i < 5; i++) {
-          setTimeout(() => {
-            logger.info(LogCategory.COLLABORATION, `Batch test log ${i + 1}`, {
-              batchId: 'batch-' + Date.now(),
-              sequence: i + 1,
-              testScenario: true
+          setTimeout(async () => {
+            await fetch('/api/logs/database', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                event: `Batch test log ${i + 1}`,
+                action: 'collaboration',
+                details: { batchId, sequence: i + 1, testScenario: true }
+              })
             })
           }, i * 100)
         }
         break
-    }
+      }
 
-    toast({
-      title: 'Test Scenario Generated',
-      description: `Generated ${scenario.replace('_', ' ')} test logs`,
-    })
+      toast({
+        title: 'Test Scenario Generated',
+        description: `Generated ${scenario.replace('_', ' ')} test logs`,
+      })
+    } catch (error) {
+      console.error('Error generating test scenario:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to generate test scenario',
+        variant: 'destructive',
+      })
+    }
   }
 
   const getLevelIcon = (level: LogLevel) => {

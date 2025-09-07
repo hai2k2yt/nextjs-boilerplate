@@ -4,8 +4,26 @@ import { db } from '@/server/db'
 import { flowRedisManager, ParticipantInfo } from '@/lib/redis'
 import { CustomNode, CustomEdge } from '@/components/reactflow/node-types'
 import { COLLABORATION_CONSTANTS, WEBSOCKET_EVENTS, FLOW_CHANGE_TYPES } from '@/lib/constants/collaboration'
-import { logger, LogCategory } from '@/lib/logger-init'
-import { initializeDatabaseLogger } from '@/lib/database-logger'
+// Removed in-memory logger - using database-only logging
+
+// Helper function to log to database
+async function logToDatabase(event: string, action: string, userId?: string, roomId?: string, details?: any) {
+  try {
+    await fetch('/api/logs/database', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event,
+        action,
+        userId,
+        roomId,
+        details: details || {}
+      })
+    })
+  } catch (error) {
+    console.warn('Failed to log to database:', error)
+  }
+}
 
 // Define proper types for React Flow data
 export interface FlowViewport {
@@ -96,27 +114,24 @@ export class FlowWebSocketManager {
       pingInterval: 25000
     })
 
-    // Initialize database logger for React Flow actions
-    initializeDatabaseLogger()
+    // Using database-only logging - no initialization needed
 
     this.setupSocketHandlers()
   }
 
   private setupSocketHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      logger.logWebSocketEvent('client_connected', undefined, undefined, { socketId: socket.id })
       console.log('Client connected:', socket.id)
 
       // Handle room joining
       socket.on(WEBSOCKET_EVENTS.JOIN_ROOM, async (data: { roomId: string; token: string }) => {
-        const timer = logger.startTimer('room_join')
         try {
           const { roomId, token } = data
 
           // Verify user authentication using the token
           const user = await this.authenticateUser(token)
           if (!user) {
-            logger.logWebSocketEvent('join_room_failed', undefined, roomId, { reason: 'authentication_failed' })
+            logToDatabase('WebSocket join_room_failed', 'websocket', undefined, roomId, { reason: 'authentication_failed' })
             socket.emit('error', { message: 'Authentication failed' })
             return
           }
@@ -124,7 +139,7 @@ export class FlowWebSocketManager {
           // Check if user has access to the room
           const hasAccess = await this.checkRoomAccess(roomId, user.id)
           if (!hasAccess) {
-            logger.logWebSocketEvent('join_room_failed', user.id, roomId, { reason: 'access_denied' })
+            logToDatabase('WebSocket join_room_failed', 'websocket', user.id, roomId, { reason: 'access_denied' })
             socket.emit('error', { message: 'Access denied to room' })
             return
           }
@@ -164,20 +179,10 @@ export class FlowWebSocketManager {
           // Notify other participants
           socket.to(roomId).emit(WEBSOCKET_EVENTS.PARTICIPANT_JOINED, participant)
 
-          logger.logWebSocketEvent('room_joined', user.id, roomId, { participantName: user.name })
+          logToDatabase('WebSocket room_joined', 'websocket', user.id, roomId, { participantName: user.name })
           console.log(`User ${user.id} joined room ${roomId} successfully`)
-          timer()
 
         } catch (error) {
-          timer()
-          logger.error(LogCategory.WEBSOCKET, 'Error joining room', {
-            roomId: data.roomId,
-            error: {
-              name: error instanceof Error ? error.name : 'Unknown',
-              message: error instanceof Error ? error.message : 'Unknown error',
-              stack: error instanceof Error ? error.stack : undefined
-            }
-          })
           console.error('Error joining room:', error)
           socket.emit('error', {
             message: 'Failed to join room',
@@ -197,7 +202,7 @@ export class FlowWebSocketManager {
           timestamp: Date.now()
         }
 
-        const timer = logger.startTimer('flow_change_processing')
+        // Removed timer logging
         try {
           // Store change in Redis immediately for persistence
           await flowRedisManager.addPendingChange(socket.roomId, flowEvent)
@@ -208,9 +213,9 @@ export class FlowWebSocketManager {
           // Queue for delayed database sync (30 seconds)
           this.queueDatabaseSync(socket.roomId, flowEvent)
 
-          // Log detailed React Flow action
+          // Log important React Flow action to database
           const actionDetails = this.getActionDetails(event.type, event.data)
-          logger.logCollaborationEvent('flow_change_received', socket.userId, socket.roomId, {
+          logToDatabase('React Flow change received', 'collaboration', socket.userId, socket.roomId, {
             changeType: event.type,
             timestamp: flowEvent.timestamp,
             action: actionDetails.action,
@@ -218,20 +223,8 @@ export class FlowWebSocketManager {
             nodeCount: actionDetails.nodeCount,
             edgeCount: actionDetails.edgeCount
           })
-          timer()
 
         } catch (error) {
-          timer()
-          logger.error(LogCategory.COLLABORATION, 'Error handling flow change', {
-            userId: socket.userId,
-            roomId: socket.roomId,
-            changeType: event.type,
-            error: {
-              name: error instanceof Error ? error.name : 'Unknown',
-              message: error instanceof Error ? error.message : 'Unknown error',
-              stack: error instanceof Error ? error.stack : undefined
-            }
-          })
           console.error('Error handling flow change:', error)
         }
       })
@@ -259,7 +252,7 @@ export class FlowWebSocketManager {
 
       // Handle disconnection
       socket.on('disconnect', async () => {
-        logger.logWebSocketEvent('client_disconnected', socket.userId, socket.roomId, { socketId: socket.id })
+        // Client disconnected
         console.log('Client disconnected:', socket.id)
 
         if (socket.userId && socket.roomId) {
@@ -371,23 +364,19 @@ export class FlowWebSocketManager {
   }
 
   private async processDatabaseQueue(roomId: string) {
-    const timer = logger.startTimer('database_queue_processing')
+    // Removed timer logging
     try {
       const events = this.databaseQueues.get(roomId) || []
 
       if (events.length === 0) return
 
-      logger.info(LogCategory.DATABASE, `Processing database sync events`, {
-        roomId,
-        eventCount: events.length,
-        operation: 'batch_sync'
-      })
+      // Processing database sync events
       console.log(`Processing ${events.length} database sync events for room ${roomId}`)
 
       // Get current room data with database fallback
       const roomData = await this.getRoomDataWithFallback(roomId)
       if (!roomData) {
-        logger.warn(LogCategory.DATABASE, `Cannot sync room - room data not found`, { roomId })
+        // Cannot sync room - room data not found
         console.warn(`Cannot sync room ${roomId} - room data not found`)
         return
       }
@@ -396,7 +385,7 @@ export class FlowWebSocketManager {
       const updatedFlowData = this.applyChangesToFlowData(roomData.flowData, events)
 
       // Update database (cast to any for Prisma JSON compatibility)
-      const dbTimer = logger.startTimer('database_update')
+      // Database update
       await db.flowRoom.update({
         where: { id: roomId },
         data: {
@@ -404,9 +393,7 @@ export class FlowWebSocketManager {
           updatedAt: new Date()
         }
       })
-      dbTimer()
-
-      logger.logDatabaseOperation('update', 'flowRoom', 1)
+      // Database operation completed
 
       // Update Redis cache
       await flowRedisManager.cacheFlowRoom(roomId, {
@@ -421,28 +408,11 @@ export class FlowWebSocketManager {
 
       // Log detailed database sync completion
       const syncSummary = this.getSyncSummary(events)
-      logger.info(LogCategory.DATABASE, `Database sync completed`, {
-        roomId,
-        eventCount: events.length,
-        operation: 'batch_sync_complete',
-        syncSummary,
-        totalNodes: updatedFlowData.nodes.length,
-        totalEdges: updatedFlowData.edges.length
-      })
+      // Database sync completed
       console.log(`Synced ${events.length} changes to database for room ${roomId}:`, syncSummary)
-      timer()
 
     } catch (error) {
-      timer()
-      logger.error(LogCategory.DATABASE, 'Error processing database queue', {
-        roomId,
-        operation: 'batch_sync',
-        error: {
-          name: error instanceof Error ? error.name : 'Unknown',
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        }
-      })
+      // Error processing database queue
       console.error('Error processing database queue:', error)
       // Clean up even on error
       this.databaseQueues.delete(roomId)

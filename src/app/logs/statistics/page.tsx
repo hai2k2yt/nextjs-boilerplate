@@ -17,54 +17,93 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 import { trpc } from '@/lib/trpc'
-import { LogLevel } from '@/lib/logger-init'
 import { formatDistanceToNow } from 'date-fns'
+
+// Define log enums locally
+enum LogLevel {
+  ERROR = 'ERROR',
+  WARN = 'WARN',
+  INFO = 'INFO',
+  DEBUG = 'DEBUG'
+}
 
 export default function LogStatisticsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true)
 
   // Fetch statistics
-  const { data: stats } = trpc.logs.getStatistics.useQuery(undefined, {
+  const { data: stats, isLoading: statsLoading, isFetching: statsFetching } = trpc.logs.getStatistics.useQuery(undefined, {
     refetchInterval: autoRefresh ? 5000 : false,
   })
 
   // Fetch performance metrics
-  const { data: performanceMetrics } = trpc.logs.getPerformanceMetrics.useQuery(undefined, {
+  const { data: performanceMetrics, isLoading: performanceLoading } = trpc.logs.getPerformanceMetrics.useQuery(undefined, {
     refetchInterval: autoRefresh ? 5000 : false,
   })
 
   // Fetch Redis metrics
-  const { data: redisMetrics } = trpc.logs.getRedisMetrics.useQuery(undefined, {
+  const { data: redisMetrics, isLoading: redisLoading } = trpc.logs.getRedisMetrics.useQuery(undefined, {
     refetchInterval: autoRefresh ? 5000 : false,
   })
 
   // Fetch collaboration metrics
-  const { data: collaborationMetrics } = trpc.logs.getCollaborationMetrics.useQuery(undefined, {
+  const { data: collaborationMetrics, isLoading: collaborationLoading } = trpc.logs.getCollaborationMetrics.useQuery(undefined, {
     refetchInterval: autoRefresh ? 5000 : false,
   })
 
   // Fetch recent errors
-  const { data: recentErrors = [] } = trpc.logs.getRecentLogs.useQuery({
+  const { data: recentErrors = [], isLoading: errorsLoading } = trpc.logs.getRecentLogs.useQuery({
     level: LogLevel.ERROR,
     limit: 10,
   }, {
     refetchInterval: autoRefresh ? 5000 : false,
   })
 
-  if (!stats) {
+  const isAnyLoading = statsLoading || performanceLoading || redisLoading || collaborationLoading || errorsLoading
+
+  if (isAnyLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-8 w-8 animate-spin" />
-          <span className="ml-2 text-lg">Loading statistics...</span>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-2 w-full mb-2" />
+                  <Skeleton className="h-3 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="h-80">
+                <CardHeader>
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-48 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
-  const errorRate = stats.totalLogs > 0 ? (stats.logsByLevel.error / stats.totalLogs) * 100 : 0
-  const warningRate = stats.totalLogs > 0 ? (stats.logsByLevel.warn / stats.totalLogs) * 100 : 0
+  const errorRate = stats && stats.totalLogs > 0 ? (stats.logsByLevel.ERROR / stats.totalLogs) * 100 : 0
+  const warningRate = stats && stats.totalLogs > 0 ? (stats.logsByLevel.WARN / stats.totalLogs) * 100 : 0
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -81,13 +120,21 @@ export default function LogStatisticsPage() {
               System performance metrics and analytics
             </p>
           </div>
-          <Button
-            variant={autoRefresh ? "default" : "outline"}
-            onClick={() => setAutoRefresh(!autoRefresh)}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-            Auto Refresh
-          </Button>
+          <div className="flex items-center space-x-3">
+            {statsFetching && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                Updating...
+              </div>
+            )}
+            <Button
+              variant={autoRefresh ? "default" : "outline"}
+              onClick={() => setAutoRefresh(!autoRefresh)}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
+              Auto Refresh
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
@@ -129,9 +176,9 @@ export default function LogStatisticsPage() {
                   <Activity className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalLogs.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{stats?.totalLogs.toLocaleString() || '0'}</div>
                   <p className="text-xs text-muted-foreground">
-                    {stats.logsByLevel.info} info, {stats.logsByLevel.debug} debug
+                    {stats?.logsByLevel.INFO || 0} info, {stats?.logsByLevel.DEBUG || 0} debug
                   </p>
                 </CardContent>
               </Card>
@@ -142,8 +189,8 @@ export default function LogStatisticsPage() {
                   <Server className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.redisMetrics.hitRate}%</div>
-                  <Progress value={stats.redisMetrics.hitRate} className="mt-2" />
+                  <div className="text-2xl font-bold">{stats?.redisMetrics.hitRate || 0}%</div>
+                  <Progress value={stats?.redisMetrics.hitRate || 0} className="mt-2" />
                 </CardContent>
               </Card>
 
@@ -153,9 +200,9 @@ export default function LogStatisticsPage() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.collaborationMetrics.totalParticipants}</div>
+                  <div className="text-2xl font-bold">{stats?.collaborationMetrics.totalParticipants || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    in {stats.collaborationMetrics.activeRooms} rooms
+                    in {stats?.collaborationMetrics.activeRooms || 0} rooms
                   </p>
                 </CardContent>
               </Card>
@@ -169,7 +216,7 @@ export default function LogStatisticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {Object.entries(stats.logsByCategory).map(([category, count]) => (
+                  {Object.entries(stats?.logsByCategory || {}).map(([category, count]) => (
                     <div key={category} className="text-center">
                       <div className="text-2xl font-bold">{count}</div>
                       <div className="text-sm text-muted-foreground capitalize">
@@ -215,21 +262,12 @@ export default function LogStatisticsPage() {
                     <CardDescription>Operations that took the longest to complete</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-64">
-                      <div className="space-y-2">
-                        {performanceMetrics.slowestOperations.map((op, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 border rounded">
-                            <div>
-                              <div className="font-medium">{op.operation}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {formatDistanceToNow(new Date(op.timestamp), { addSuffix: true })}
-                              </div>
-                            </div>
-                            <Badge variant="outline">{op.duration}ms</Badge>
-                          </div>
-                        ))}
+                    <div className="h-64 flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <div className="text-sm">Performance tracking not yet implemented</div>
+                        <div className="text-xs mt-1">Operation metrics coming soon...</div>
                       </div>
-                    </ScrollArea>
+                    </div>
                   </CardContent>
                 </Card>
               </>

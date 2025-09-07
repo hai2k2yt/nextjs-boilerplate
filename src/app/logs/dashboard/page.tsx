@@ -10,28 +10,60 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import { trpc } from '@/lib/trpc'
-import { RealTimeLogs, WebSocketLogs, DatabaseLogs, RedisLogs, ErrorLogs, CollaborationLogs } from '@/components/logs/real-time-logs'
+import { SyncLogs, WebSocketLogs, DatabaseLogs, RedisLogs, ErrorLogs, CollaborationLogs, PerformanceLogs } from '@/components/logs/sync-logs'
 
 
 export default function LogDashboardPage() {
   // Fetch statistics for overview cards
-  const { data: stats } = trpc.logs.getStatistics.useQuery(undefined, {
+  const { data: stats, isLoading, isFetching } = trpc.logs.getStatistics.useQuery(undefined, {
     refetchInterval: 5000,
   })
 
-  if (!stats) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex items-center justify-center h-64">
-          <Activity className="h-8 w-8 animate-spin" />
-          <span className="ml-2 text-lg">Loading dashboard...</span>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-3 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-48" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Card key={i} className="h-64">
+                  <CardHeader>
+                    <Skeleton className="h-5 w-32" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-32 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  const errorRate = stats.totalLogs > 0 ? (stats.logsByLevel.error / stats.totalLogs) * 100 : 0
+  const errorRate = stats && stats.totalLogs > 0 ? (stats.logsByLevel.ERROR / stats.totalLogs) * 100 : 0
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -41,11 +73,19 @@ export default function LogDashboardPage() {
         transition={{ duration: 0.5 }}
       >
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Log Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Real-time monitoring and system insights
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Log Dashboard</h1>
+            <p className="text-muted-foreground mt-2">
+              Real-time monitoring and system insights
+            </p>
+          </div>
+          {isFetching && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Activity className="h-4 w-4 mr-1 animate-spin" />
+              Updating...
+            </div>
+          )}
         </div>
 
         {/* Quick Stats */}
@@ -75,9 +115,9 @@ export default function LogDashboardPage() {
               <Server className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.redisMetrics.hitRate}%</div>
+              <div className="text-2xl font-bold">{stats?.redisMetrics.hitRate || 0}%</div>
               <p className="text-xs text-muted-foreground">
-                {stats.redisMetrics.cacheHits} hits today
+                {stats?.redisMetrics.cacheHits || 0} hits today
               </p>
             </CardContent>
           </Card>
@@ -88,9 +128,9 @@ export default function LogDashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.collaborationMetrics.totalParticipants}</div>
+              <div className="text-2xl font-bold">{stats?.collaborationMetrics.totalParticipants || 0}</div>
               <p className="text-xs text-muted-foreground">
-                in {stats.collaborationMetrics.activeRooms} rooms
+                in {stats?.collaborationMetrics.activeRooms || 0} rooms
               </p>
             </CardContent>
           </Card>
@@ -101,7 +141,7 @@ export default function LogDashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.performanceMetrics.averageResponseTime}ms</div>
+              <div className="text-2xl font-bold">{stats?.performanceMetrics.averageResponseTime || 0}ms</div>
               <p className="text-xs text-muted-foreground">
                 average response time
               </p>
@@ -123,7 +163,7 @@ export default function LogDashboardPage() {
 
           <TabsContent value="all" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RealTimeLogs maxLogs={30} />
+              <SyncLogs maxLogs={30} />
               <Card>
                 <CardHeader>
                   <CardTitle>System Overview</CardTitle>
@@ -133,23 +173,23 @@ export default function LogDashboardPage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Total Events</span>
-                      <span className="text-2xl font-bold">{stats.totalLogs.toLocaleString()}</span>
+                      <span className="text-2xl font-bold">{stats?.totalLogs.toLocaleString() || '0'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Error Events</span>
-                      <span className="text-lg font-semibold text-red-600">{stats.logsByLevel.error}</span>
+                      <span className="text-lg font-semibold text-red-600">{stats?.logsByLevel.ERROR || 0}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Warning Events</span>
-                      <span className="text-lg font-semibold text-yellow-600">{stats.logsByLevel.warn}</span>
+                      <span className="text-lg font-semibold text-yellow-600">{stats?.logsByLevel.WARN || 0}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Info Events</span>
-                      <span className="text-lg font-semibold text-blue-600">{stats.logsByLevel.info}</span>
+                      <span className="text-lg font-semibold text-blue-600">{stats?.logsByLevel.INFO || 0}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Debug Events</span>
-                      <span className="text-lg font-semibold text-gray-600">{stats.logsByLevel.debug}</span>
+                      <span className="text-lg font-semibold text-gray-600">{stats?.logsByLevel.DEBUG || 0}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -160,195 +200,331 @@ export default function LogDashboardPage() {
           <TabsContent value="errors">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ErrorLogs />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Error Analysis</CardTitle>
-                  <CardDescription>Recent error patterns and trends</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">Error Rate</span>
-                        <span className={`font-bold ${errorRate < 1 ? 'text-green-600' : errorRate < 5 ? 'text-yellow-600' : 'text-red-600'}`}>
-                          {errorRate.toFixed(2)}%
-                        </span>
+              {isLoading ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-4 w-48" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <Skeleton className="h-5 w-20" />
+                          <Skeleton className="h-6 w-16" />
+                        </div>
+                        <Skeleton className="h-4 w-40" />
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {errorRate < 1 ? 'System is healthy' : errorRate < 5 ? 'Minor issues detected' : 'Critical issues require attention'}
-                      </div>
+                      <Skeleton className="h-4 w-48" />
                     </div>
-                    {stats.recentErrors.length > 0 && (
-                      <div>
-                        <h4 className="font-medium mb-2">Recent Error Categories</h4>
-                        <div className="space-y-2">
-                          {stats.recentErrors.slice(0, 3).map((error, index) => (
-                            <div key={index} className="text-sm p-2 bg-red-50 border border-red-200 rounded">
-                              <div className="font-medium text-red-800">{error.category}</div>
-                              <div className="text-red-600 truncate">{error.message}</div>
-                            </div>
-                          ))}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Error Analysis</CardTitle>
+                    <CardDescription>Recent error patterns and trends</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">Error Rate</span>
+                          <span className={`font-bold ${errorRate < 1 ? 'text-green-600' : errorRate < 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {errorRate.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {errorRate < 1 ? 'System is healthy' : errorRate < 5 ? 'Minor issues detected' : 'Critical issues require attention'}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      {/* Recent errors feature not yet implemented */}
+                      <div className="text-sm text-gray-500 italic">
+                        Recent error tracking coming soon...
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="websocket">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <WebSocketLogs />
-              <Card>
-                <CardHeader>
-                  <CardTitle>WebSocket Activity</CardTitle>
-                  <CardDescription>Real-time connection monitoring</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">WebSocket Events</span>
-                      <span className="text-2xl font-bold">{stats.logsByCategory.websocket || 0}</span>
+              {isLoading ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-4 w-48" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Active Connections</span>
-                      <span className="text-lg font-semibold text-green-600">{stats.collaborationMetrics.totalParticipants}</span>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>WebSocket Activity</CardTitle>
+                    <CardDescription>Real-time connection monitoring</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">WebSocket Events</span>
+                        <span className="text-2xl font-bold">{stats?.logsByCategory.websocket || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Active Connections</span>
+                        <span className="text-lg font-semibold text-green-600">{stats?.collaborationMetrics.totalParticipants || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Active Rooms</span>
+                        <span className="text-lg font-semibold text-blue-600">{stats?.collaborationMetrics.activeRooms || 0}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Active Rooms</span>
-                      <span className="text-lg font-semibold text-blue-600">{stats.collaborationMetrics.activeRooms}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="database">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DatabaseLogs />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Database Performance</CardTitle>
-                  <CardDescription>Query performance and operations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Database Operations</span>
-                      <span className="text-2xl font-bold">{stats.logsByCategory.database || 0}</span>
+              {isLoading ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-4 w-48" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-6 w-16" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Avg Query Time</span>
-                      <span className="text-lg font-semibold">{stats.performanceMetrics.averageResponseTime}ms</span>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Database Performance</CardTitle>
+                    <CardDescription>Query performance and operations</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Database Operations</span>
+                        <span className="text-2xl font-bold">{stats?.logsByCategory.database || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Avg Query Time</span>
+                        <span className="text-lg font-semibold">{stats?.performanceMetrics.averageResponseTime || 0}ms</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Conflicts Resolved</span>
+                        <span className="text-lg font-semibold text-orange-600">{stats?.collaborationMetrics.conflictsResolved || 0}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Conflicts Resolved</span>
-                      <span className="text-lg font-semibold text-orange-600">{stats.collaborationMetrics.conflictsResolved}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="redis">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RedisLogs />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Redis Cache Metrics</CardTitle>
-                  <CardDescription>Cache performance and hit rates</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Cache Hit Rate</span>
-                      <span className="text-2xl font-bold text-green-600">{stats.redisMetrics.hitRate}%</span>
+              {isLoading ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-4 w-48" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Cache Hits</span>
-                      <span className="text-lg font-semibold text-green-600">{stats.redisMetrics.cacheHits}</span>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Redis Cache Metrics</CardTitle>
+                    <CardDescription>Cache performance and hit rates</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Cache Hit Rate</span>
+                        <span className="text-2xl font-bold text-green-600">{stats?.redisMetrics.hitRate || 0}%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Cache Hits</span>
+                        <span className="text-lg font-semibold text-green-600">{stats?.redisMetrics.cacheHits || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Cache Misses</span>
+                        <span className="text-lg font-semibold text-red-600">{stats?.redisMetrics.cacheMisses || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Redis Operations</span>
+                        <span className="text-lg font-semibold">{stats?.logsByCategory.redis || 0}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Cache Misses</span>
-                      <span className="text-lg font-semibold text-red-600">{stats.redisMetrics.cacheMisses}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Redis Operations</span>
-                      <span className="text-lg font-semibold">{stats.logsByCategory.redis || 0}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="collaboration">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <CollaborationLogs />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Collaboration Metrics</CardTitle>
-                  <CardDescription>User activity and collaboration stats</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Collaboration Events</span>
-                      <span className="text-2xl font-bold">{stats.logsByCategory.collaboration || 0}</span>
+              {isLoading ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-4 w-48" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Active Participants</span>
-                      <span className="text-lg font-semibold text-blue-600">{stats.collaborationMetrics.totalParticipants}</span>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Collaboration Metrics</CardTitle>
+                    <CardDescription>User activity and collaboration stats</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Collaboration Events</span>
+                        <span className="text-2xl font-bold">{stats?.logsByCategory.collaboration || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Active Participants</span>
+                        <span className="text-lg font-semibold text-blue-600">{stats?.collaborationMetrics.totalParticipants || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Active Rooms</span>
+                        <span className="text-lg font-semibold text-purple-600">{stats?.collaborationMetrics.activeRooms || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Conflicts Resolved</span>
+                        <span className="text-lg font-semibold text-orange-600">{stats?.collaborationMetrics.conflictsResolved || 0}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Active Rooms</span>
-                      <span className="text-lg font-semibold text-purple-600">{stats.collaborationMetrics.activeRooms}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Conflicts Resolved</span>
-                      <span className="text-lg font-semibold text-orange-600">{stats.collaborationMetrics.conflictsResolved}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="performance">
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance Monitoring</CardTitle>
-                <CardDescription>System performance metrics and slow operations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Average Response Time</span>
-                      <span className="text-2xl font-bold">{stats.performanceMetrics.averageResponseTime}ms</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PerformanceLogs />
+              {isLoading ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-4 w-56" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                      <Skeleton className="h-4 w-48" />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Performance Events</span>
-                      <span className="text-lg font-semibold">{stats.logsByCategory.performance || 0}</span>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Performance Metrics</CardTitle>
+                    <CardDescription>System performance overview and slow operations</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Average Response Time</span>
+                        <span className="text-2xl font-bold">{stats?.performanceMetrics.averageResponseTime || 0}ms</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Performance Events</span>
+                        <span className="text-lg font-semibold">{stats?.logsByCategory.performance || 0}</span>
+                      </div>
+                      {/* Performance tracking feature not yet implemented */}
+                      <div className="text-sm text-gray-500 italic">
+                        Performance operation tracking coming soon...
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Slowest Operations</h4>
-                    <div className="space-y-2">
-                      {stats.performanceMetrics.slowestOperations.slice(0, 3).map((op, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-orange-50 border border-orange-200 rounded">
-                          <span className="text-sm font-medium">{op.operation}</span>
-                          <span className="text-sm font-bold text-orange-600">{op.duration}ms</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </motion.div>

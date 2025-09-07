@@ -1,6 +1,27 @@
 import { z } from 'zod'
 import { createTRPCRouter, publicProcedure, protectedProcedure } from '@/server/api/trpc'
-import { logger, LogLevel, LogCategory } from '@/lib/logger-init'
+import { db } from '@/server/db'
+
+// Note: This router uses database audit logs as the single source of truth
+// All log pages read from the AuditLog table for consistency
+
+// Define log enums for validation
+enum LogLevel {
+  ERROR = 'ERROR',
+  WARN = 'WARN',
+  INFO = 'INFO',
+  DEBUG = 'DEBUG'
+}
+
+enum LogCategory {
+  SYSTEM = 'system',
+  WEBSOCKET = 'websocket',
+  REDIS = 'redis',
+  DATABASE = 'database',
+  COLLABORATION = 'collaboration',
+  PERFORMANCE = 'performance',
+  SECURITY = 'security'
+}
 
 // Input validation schemas
 const logFiltersSchema = z.object({
@@ -19,119 +40,147 @@ const logSearchSchema = z.object({
 })
 
 export const logsRouter = createTRPCRouter({
-  // Get logs with filtering
+  // Get logs with filtering - using audit logs for consistency
   getLogs: publicProcedure
     .input(logFiltersSchema)
-    .query(({ input }) => {
-      return logger.getLogs(input)
+    .query(async ({ input }) => {
+      // Get logs from audit log database for consistency across all log pages
+      const auditLogs = await db.auditLog.findMany({
+        where: {
+          ...(input.userId && { userId: input.userId }),
+          ...(input.roomId && { roomId: input.roomId }),
+          // Map category filter to category field
+          ...(input.category && { category: { contains: input.category, mode: 'insensitive' } }),
+          ...(input.startTime && { timestamp: { gte: input.startTime } }),
+          ...(input.endTime && { timestamp: { lte: input.endTime } }),
+        },
+        orderBy: { timestamp: 'desc' },
+        take: input.limit,
+      })
+
+      // Convert audit logs to logger format
+      return auditLogs.map(log => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        level: log.level as LogLevel,
+        category: log.category as LogCategory,
+        message: log.message,
+        metadata: log.metadata,
+        userId: log.userId,
+        roomId: log.roomId,
+      }))
     }),
 
-  // Search logs
+  // Search logs in database
   searchLogs: publicProcedure
     .input(logSearchSchema)
-    .query(({ input }) => {
-      const logs = logger.getLogs(input.filters)
-      
-      // Simple text search in message and metadata
-      const filteredLogs = logs.filter(log => {
-        const searchText = input.query.toLowerCase()
-        const messageMatch = log.message.toLowerCase().includes(searchText)
-        const metadataMatch = log.metadata ? 
-          JSON.stringify(log.metadata).toLowerCase().includes(searchText) : false
-        
-        return messageMatch || metadataMatch
+    .query(async ({ input }) => {
+      const auditLogs = await db.auditLog.findMany({
+        where: {
+          OR: [
+            { message: { contains: input.query, mode: 'insensitive' } },
+            { category: { contains: input.query, mode: 'insensitive' } },
+          ],
+          ...(input.filters?.userId && { userId: input.filters.userId }),
+          ...(input.filters?.roomId && { roomId: input.filters.roomId }),
+          ...(input.filters?.category && { category: { contains: input.filters.category, mode: 'insensitive' } }),
+          ...(input.filters?.startTime && { timestamp: { gte: input.filters.startTime } }),
+          ...(input.filters?.endTime && { timestamp: { lte: input.filters.endTime } }),
+        },
+        orderBy: { timestamp: 'desc' },
+        take: input.filters?.limit || 100,
       })
 
-      return filteredLogs
+      // Convert to logger format
+      return auditLogs.map(log => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        level: log.level as LogLevel,
+        category: log.category as LogCategory,
+        message: log.message,
+        metadata: log.metadata,
+        userId: log.userId,
+        roomId: log.roomId,
+      }))
     }),
 
-  // Get statistics
+  // Get statistics - using audit logs for consistency
   getStatistics: publicProcedure
-    .query(() => {
-      return logger.getStatistics()
-    }),
-
-  // Get recent logs (for dashboard widgets)
-  getRecentLogs: publicProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(50).default(10),
-      level: z.nativeEnum(LogLevel).optional(),
-    }))
-    .query(({ input }) => {
-      return logger.getLogs({
-        limit: input.limit,
-        level: input.level,
+    .query(async () => {
+      // Get statistics from audit logs
+      const totalLogs = await db.auditLog.count()
+      // Get recent logs for analysis (not used in response but kept for potential future use)
+      const _recentLogs = await db.auditLog.findMany({
+        orderBy: { timestamp: 'desc' },
+        take: 10,
       })
-    }),
 
-  // Get logs by category (for category-specific views)
-  getLogsByCategory: publicProcedure
-    .input(z.object({
-      category: z.nativeEnum(LogCategory),
-      limit: z.number().min(1).max(500).default(100),
-    }))
-    .query(({ input }) => {
-      return logger.getLogs({
-        category: input.category,
-        limit: input.limit,
+      // Calculate basic statistics
+      const logsByCategory = await db.auditLog.groupBy({
+        by: ['category'],
+        _count: { category: true },
       })
-    }),
 
-  // Get logs for a specific room (collaboration context)
-  getRoomLogs: publicProcedure
-    .input(z.object({
-      roomId: z.string(),
-      limit: z.number().min(1).max(500).default(100),
-    }))
-    .query(({ input }) => {
-      return logger.getLogs({
-        roomId: input.roomId,
-        limit: input.limit,
-      })
-    }),
+      const categoryStats = Object.values(LogCategory).reduce((acc, category) => {
+        const found = logsByCategory.find(stat => stat.category.toLowerCase().includes(category))
+        acc[category] = found?._count.category || 0
+        return acc
+      }, {} as Record<LogCategory, number>)
 
-  // Get logs for a specific user
-  getUserLogs: publicProcedure
-    .input(z.object({
-      userId: z.string(),
-      limit: z.number().min(1).max(500).default(100),
-    }))
-    .query(({ input }) => {
-      return logger.getLogs({
-        userId: input.userId,
-        limit: input.limit,
-      })
-    }),
+      const logsByLevel = {
+        [LogLevel.ERROR]: 0,
+        [LogLevel.WARN]: 0,
+        [LogLevel.INFO]: totalLogs, // Most audit logs are info level
+        [LogLevel.DEBUG]: 0,
+      }
 
-  // Get performance metrics
-  getPerformanceMetrics: publicProcedure
-    .query(() => {
-      const stats = logger.getStatistics()
       return {
-        averageResponseTime: stats.performanceMetrics.averageResponseTime,
-        slowestOperations: stats.performanceMetrics.slowestOperations,
+        totalLogs,
+        logsByLevel,
+        logsByCategory: categoryStats,
+        recentErrors: [], // Could be enhanced to track errors
+        performanceMetrics: {
+          averageResponseTime: 0,
+          slowestOperations: [],
+        },
+        redisMetrics: {
+          cacheHits: 0,
+          cacheMisses: 0,
+          hitRate: 0,
+        },
+        collaborationMetrics: {
+          activeRooms: 0,
+          totalParticipants: 0,
+          conflictsResolved: 0,
+        },
       }
     }),
 
-  // Get Redis metrics
-  getRedisMetrics: publicProcedure
-    .query(() => {
-      const stats = logger.getStatistics()
-      return stats.redisMetrics
-    }),
+  // Get recent logs from database (for dashboard widgets)
+  getRecentLogs: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(50).default(10),
+      level: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const auditLogs = await db.auditLog.findMany({
+        where: {
+          ...(input.level && { level: input.level }),
+        },
+        orderBy: { timestamp: 'desc' },
+        take: input.limit,
+      })
 
-  // Get collaboration metrics
-  getCollaborationMetrics: publicProcedure
-    .query(() => {
-      const stats = logger.getStatistics()
-      return stats.collaborationMetrics
-    }),
-
-  // Clear logs (protected - only authenticated users)
-  clearLogs: protectedProcedure
-    .mutation(() => {
-      logger.clearLogs()
-      return { success: true, message: 'Logs cleared successfully' }
+      return auditLogs.map(log => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        level: log.level as LogLevel,
+        category: log.category as LogCategory,
+        message: log.message,
+        metadata: log.metadata,
+        userId: log.userId,
+        roomId: log.roomId,
+      }))
     }),
 
   // Get audit logs from database
@@ -180,11 +229,47 @@ export const logsRouter = createTRPCRouter({
       return flowLogs
     }),
 
+  // Clear all logs
+  clearLogs: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      await ctx.db.auditLog.deleteMany({})
+      return { success: true }
+    }),
 
+  // Get performance metrics (placeholder implementation)
+  getPerformanceMetrics: publicProcedure
+    .query(async () => {
+      // Placeholder implementation - could be enhanced with real metrics
+      return {
+        averageResponseTime: 0,
+        slowestOperations: [],
+        throughput: 0,
+        errorRate: 0,
+      }
+    }),
 
+  // Get Redis metrics (placeholder implementation)
+  getRedisMetrics: publicProcedure
+    .query(async () => {
+      // Placeholder implementation - could be enhanced with real Redis metrics
+      return {
+        cacheHits: 0,
+        cacheMisses: 0,
+        hitRate: 0,
+        memoryUsage: 0,
+        connectedClients: 0,
+      }
+    }),
 
-
-
-
-
+  // Get collaboration metrics (placeholder implementation)
+  getCollaborationMetrics: publicProcedure
+    .query(async () => {
+      // Placeholder implementation - could be enhanced with real collaboration metrics
+      return {
+        activeRooms: 0,
+        totalParticipants: 0,
+        conflictsResolved: 0,
+        averageSessionDuration: 0,
+      }
+    }),
 })

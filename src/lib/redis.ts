@@ -1,7 +1,7 @@
 import Redis from 'ioredis'
 import { env } from '@/env'
 import { COLLABORATION_CONSTANTS } from '@/lib/constants/collaboration'
-import { logger } from '@/lib/logger-init'
+// Removed logger import - using database-only logging
 
 const getRedisConfig = () => {
   // Build configuration from host and port
@@ -89,34 +89,23 @@ export interface ParticipantInfo {
 export class FlowRedisManager {
   // Cache flow room data
   async cacheFlowRoom(roomId: string, data: FlowRoomCache): Promise<void> {
-    const timer = logger.startTimer('redis_cache_set')
     try {
       await redis.setex(
         FLOW_ROOM_KEY(roomId),
         FLOW_ROOM_TTL,
         JSON.stringify(data)
       )
-      logger.logRedisOperation('setex', FLOW_ROOM_KEY(roomId), true)
-      timer()
     } catch (error) {
-      timer()
-      logger.logRedisOperation('setex', FLOW_ROOM_KEY(roomId), false)
       throw error
     }
   }
 
   // Get cached flow room data
   async getFlowRoom(roomId: string): Promise<FlowRoomCache | null> {
-    const timer = logger.startTimer('redis_cache_get')
     try {
       const data = await redis.get(FLOW_ROOM_KEY(roomId))
-      const hit = data !== null
-      logger.logRedisOperation('get', FLOW_ROOM_KEY(roomId), hit)
-      timer()
       return data ? JSON.parse(data) : null
     } catch (error) {
-      timer()
-      logger.logRedisOperation('get', FLOW_ROOM_KEY(roomId), false)
       throw error
     }
   }

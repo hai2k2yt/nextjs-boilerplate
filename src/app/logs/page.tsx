@@ -23,11 +23,40 @@ import { Badge } from '@/components/ui/badge'
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 
 import { useToast } from '@/hooks/use-toast'
 import { trpc } from '@/lib/trpc'
-import { LogLevel, LogCategory, type LogEntry } from '@/lib/logger-init'
 import { formatDistanceToNow } from 'date-fns'
+
+// Define log enums locally
+enum LogLevel {
+  ERROR = 'ERROR',
+  WARN = 'WARN',
+  INFO = 'INFO',
+  DEBUG = 'DEBUG'
+}
+
+enum LogCategory {
+  SYSTEM = 'system',
+  WEBSOCKET = 'websocket',
+  REDIS = 'redis',
+  DATABASE = 'database',
+  COLLABORATION = 'collaboration',
+  PERFORMANCE = 'performance',
+  SECURITY = 'security'
+}
+
+interface LogEntry {
+  id: string
+  timestamp: Date
+  level: LogLevel
+  category: LogCategory
+  message: string
+  metadata: any // JsonValue from Prisma
+  userId: string | null
+  roomId: string | null
+}
 
 export default function LogsPage() {
   const { toast } = useToast()
@@ -37,7 +66,7 @@ export default function LogsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true)
 
   // Fetch logs with filters
-  const { data: logs = [], refetch: refetchLogs, isLoading } = trpc.logs.getLogs.useQuery({
+  const { data: logs = [], refetch: refetchLogs, isLoading, isFetching } = trpc.logs.getLogs.useQuery({
     level: selectedLevel === 'all' ? undefined : selectedLevel,
     category: selectedCategory === 'all' ? undefined : selectedCategory,
     limit: 500,
@@ -46,12 +75,12 @@ export default function LogsPage() {
   })
 
   // Fetch statistics
-  const { data: stats } = trpc.logs.getStatistics.useQuery(undefined, {
+  const { data: stats, isLoading: statsLoading, isFetching: statsFetching } = trpc.logs.getStatistics.useQuery(undefined, {
     refetchInterval: autoRefresh ? 5000 : false,
   })
 
   // Search logs
-  const { data: searchResults = [], refetch: refetchSearch } = trpc.logs.searchLogs.useQuery({
+  const { data: searchResults = [], refetch: refetchSearch, isLoading: searchLoading, isFetching: searchFetching } = trpc.logs.searchLogs.useQuery({
     query: searchQuery,
     filters: {
       level: selectedLevel === 'all' ? undefined : selectedLevel,
@@ -147,69 +176,122 @@ export default function LogsPage() {
         transition={{ duration: 0.5 }}
       >
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">System Logs</h1>
-          <p className="text-muted-foreground mt-2">
-            Monitor system events, performance metrics, and troubleshoot issues
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">System Logs</h1>
+            <p className="text-muted-foreground mt-2">
+              Monitor system events, performance metrics, and troubleshoot issues
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={autoRefresh ? 'bg-green-50 border-green-200' : ''}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
+              Auto Refresh
+            </Button>
+            {(isFetching || statsFetching || searchFetching) && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                Updating...
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Statistics Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Logs</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalLogs.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.logsByLevel.error} errors, {stats.logsByLevel.warn} warnings
-                </p>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Logs</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats?.totalLogs.toLocaleString() || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats?.logsByLevel.ERROR || 0} errors, {stats?.logsByLevel.WARN || 0} warnings
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Redis Cache</CardTitle>
-                <Server className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.redisMetrics.hitRate}%</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.redisMetrics.cacheHits} hits, {stats.redisMetrics.cacheMisses} misses
-                </p>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Redis Cache</CardTitle>
+              <Server className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats?.redisMetrics.hitRate || 0}%</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats?.redisMetrics.cacheHits || 0} hits, {stats?.redisMetrics.cacheMisses || 0} misses
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Collaboration</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.collaborationMetrics.activeRooms}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.collaborationMetrics.totalParticipants} participants
-                </p>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Collaboration</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-12" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats?.collaborationMetrics.activeRooms || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats?.collaborationMetrics.totalParticipants || 0} participants
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-                <Database className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.performanceMetrics.averageResponseTime}ms</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.collaborationMetrics.conflictsResolved} conflicts resolved
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+              <Database className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats?.performanceMetrics.averageResponseTime || 0}ms</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats?.collaborationMetrics.conflictsResolved || 0} conflicts resolved
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Controls */}
         <Card className="mb-6">
@@ -222,11 +304,14 @@ export default function LogsPage() {
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  {searchLoading && searchQuery && (
+                    <RefreshCw className="absolute right-3 top-3 h-4 w-4 text-muted-foreground animate-spin" />
+                  )}
                   <Input
                     placeholder="Search logs..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 pr-10"
                   />
                 </div>
               </div>
@@ -306,26 +391,53 @@ export default function LogsPage() {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[600px]">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <RefreshCw className="h-6 w-6 animate-spin" />
-                  <span className="ml-2">Loading logs...</span>
+              {isLoading || (searchQuery && searchLoading) ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <LogEntrySkeleton key={i} />
+                  ))}
                 </div>
               ) : displayedLogs.length === 0 ? (
                 <div className="flex items-center justify-center h-32 text-muted-foreground">
-                  No logs found matching your criteria
+                  {searchQuery ? 'No logs found matching your search criteria' : 'No logs found matching your criteria'}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {displayedLogs.map((log) => (
                     <LogEntryComponent key={log.id} log={log} />
                   ))}
+                  {isFetching && !isLoading && (
+                    <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Refreshing logs...
+                    </div>
+                  )}
                 </div>
               )}
             </ScrollArea>
           </CardContent>
         </Card>
       </motion.div>
+    </div>
+  )
+}
+
+function LogEntrySkeleton() {
+  return (
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <Skeleton className="h-4 w-24" />
+      </div>
+      <Skeleton className="h-4 w-3/4" />
+      <div className="flex items-center space-x-4">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-3 w-16" />
+      </div>
     </div>
   )
 }
@@ -383,11 +495,7 @@ function LogEntryComponent({ log }: { log: LogEntry }) {
               <span className="text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
               </span>
-              {log.duration && (
-                <Badge variant="outline" className="text-xs">
-                  {log.duration}ms
-                </Badge>
-              )}
+
             </div>
             <p className="text-sm font-medium mb-1">{log.message}</p>
             {(log.userId || log.roomId) && (
@@ -406,19 +514,7 @@ function LogEntryComponent({ log }: { log: LogEntry }) {
                 </pre>
               </details>
             )}
-            {log.error && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
-                <div className="font-medium text-red-800">{log.error.name}: {log.error.message}</div>
-                {log.error.stack && (
-                  <details className="mt-1">
-                    <summary className="cursor-pointer text-red-600 hover:text-red-800">
-                      Show stack trace
-                    </summary>
-                    <pre className="mt-1 text-red-700 whitespace-pre-wrap">{log.error.stack}</pre>
-                  </details>
-                )}
-              </div>
-            )}
+
           </div>
         </div>
       </div>

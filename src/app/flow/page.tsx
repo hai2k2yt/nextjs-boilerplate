@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { trpc } from '@/lib/trpc'
 import { toast } from '@/hooks/use-toast'
 import { RoomDiscovery } from '@/components/flow/room-discovery'
+import { FlowRoomCardSkeleton } from '@/components/skeletons'
 import { InviteUsersDialog } from '@/components/flow/invite-users-dialog'
 import { UserInvitations } from '@/components/flow/user-invitations'
 import { RoomSettingsDialog } from '@/components/flow/room-settings-dialog'
@@ -200,18 +201,7 @@ export default function FlowRoomsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-4 bg-muted rounded w-3/4"></div>
-                  <div className="h-3 bg-muted rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-muted rounded"></div>
-                    <div className="h-3 bg-muted rounded w-2/3"></div>
-                  </div>
-                </CardContent>
-              </Card>
+              <FlowRoomCardSkeleton key={i} />
             ))}
           </div>
         ) : rooms && rooms.length > 0 ? (

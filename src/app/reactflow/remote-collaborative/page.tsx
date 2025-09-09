@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Users, Calendar, ArrowRight } from 'lucide-react'
 import { CollaborativeFlowCanvas } from '@/components/reactflow/collaborative-flow-canvas'
+import { RoomCardSkeleton } from '@/components/skeletons'
 import { trpc } from '@/lib/trpc'
 import { useToast } from '@/hooks/use-toast'
 
@@ -21,7 +22,7 @@ export default function RemoteCollaborativePage() {
   const [isCreating, setIsCreating] = useState(false)
 
   // Fetch user's rooms
-  const { data: rooms, refetch: refetchRooms } = trpc.flowRoom.getUserRooms.useQuery(
+  const { data: rooms, isLoading: isLoadingRooms, refetch: refetchRooms } = trpc.flowRoom.getUserRooms.useQuery(
     undefined,
     { enabled: !!session }
   )
@@ -70,6 +71,8 @@ export default function RemoteCollaborativePage() {
       minute: '2-digit'
     }).format(new Date(date))
   }
+
+
 
   if (status === 'loading') {
     return (
@@ -181,7 +184,13 @@ export default function RemoteCollaborativePage() {
       <div className="max-w-4xl mx-auto">
         <h2 className="text-2xl font-semibold mb-6">Your Rooms</h2>
 
-        {!rooms || rooms.length === 0 ? (
+        {isLoadingRooms ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <RoomCardSkeleton key={index} />
+            ))}
+          </div>
+        ) : !rooms || rooms.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <div className="text-muted-foreground">
@@ -202,8 +211,8 @@ export default function RemoteCollaborativePage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <CardTitle className="text-lg">{room.name}</CardTitle>
-                    <Badge variant={room.ownerId === session.user.id ? 'default' : 'secondary'}>
-                      {room.ownerId === session.user.id ? 'Owner' : 'Participant'}
+                    <Badge variant={room.ownerId === session?.user?.id ? 'default' : 'secondary'}>
+                      {room.ownerId === session?.user?.id ? 'Owner' : 'Participant'}
                     </Badge>
                   </div>
                   {room.description && (

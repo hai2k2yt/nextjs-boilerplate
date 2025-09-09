@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
+import { RealTimeLogSkeleton } from '@/components/skeletons'
 import { trpc } from '@/lib/trpc'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -254,22 +254,7 @@ export function RealTimeLogs({ maxLogs = 50, filters }: RealTimeLogsProps) {
   )
 }
 
-function RealTimeLogSkeleton() {
-  return (
-    <div className="p-3 rounded-lg border-l-4 border-l-gray-300 bg-gray-50 space-y-2">
-      <div className="flex items-center space-x-2">
-        <Skeleton className="h-4 w-4 rounded" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-16" />
-      </div>
-      <Skeleton className="h-4 w-3/4" />
-      <div className="flex items-center space-x-4">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-3 w-12" />
-      </div>
-    </div>
-  )
-}
+
 
 // Specialized components for different log types
 export function WebSocketLogs() {

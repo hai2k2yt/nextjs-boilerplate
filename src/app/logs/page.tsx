@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import { LogEntrySkeleton } from '@/components/skeletons'
 
 import { useToast } from '@/hooks/use-toast'
 import { trpc } from '@/lib/trpc'
@@ -422,25 +423,7 @@ export default function LogsPage() {
   )
 }
 
-function LogEntrySkeleton() {
-  return (
-    <div className="border rounded-lg p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Skeleton className="h-4 w-4 rounded" />
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <Skeleton className="h-4 w-24" />
-      </div>
-      <Skeleton className="h-4 w-3/4" />
-      <div className="flex items-center space-x-4">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-    </div>
-  )
-}
+
 
 function LogEntryComponent({ log }: { log: LogEntry }) {
   const getLevelIcon = (level: LogLevel) => {

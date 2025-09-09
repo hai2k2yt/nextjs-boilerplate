@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StatisticsCardSkeleton, AnalysisCardSkeleton, PerformanceCardSkeleton } from '@/components/skeletons'
 import { trpc } from '@/lib/trpc'
 import { SyncLogs, WebSocketLogs, DatabaseLogs, RedisLogs, ErrorLogs, CollaborationLogs, PerformanceLogs } from '@/components/logs/sync-logs'
 
@@ -31,16 +32,7 @@ export default function LogDashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-4" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-16 mb-2" />
-                  <Skeleton className="h-3 w-32" />
-                </CardContent>
-              </Card>
+              <StatisticsCardSkeleton key={i} />
             ))}
           </div>
           <div className="space-y-4">
@@ -201,24 +193,7 @@ export default function LogDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ErrorLogs />
               {isLoading ? (
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-32" />
-                    <Skeleton className="h-4 w-48" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <Skeleton className="h-5 w-20" />
-                          <Skeleton className="h-6 w-16" />
-                        </div>
-                        <Skeleton className="h-4 w-40" />
-                      </div>
-                      <Skeleton className="h-4 w-48" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <AnalysisCardSkeleton />
               ) : (
                 <Card>
                   <CardHeader>
@@ -253,28 +228,7 @@ export default function LogDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <WebSocketLogs />
               {isLoading ? (
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-40" />
-                    <Skeleton className="h-4 w-48" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-8 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <PerformanceCardSkeleton />
               ) : (
                 <Card>
                   <CardHeader>
@@ -306,28 +260,7 @@ export default function LogDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DatabaseLogs />
               {isLoading ? (
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-40" />
-                    <Skeleton className="h-4 w-48" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-36" />
-                        <Skeleton className="h-8 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-28" />
-                        <Skeleton className="h-6 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <PerformanceCardSkeleton />
               ) : (
                 <Card>
                   <CardHeader>
@@ -359,32 +292,7 @@ export default function LogDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RedisLogs />
               {isLoading ? (
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-40" />
-                    <Skeleton className="h-4 w-48" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-28" />
-                        <Skeleton className="h-8 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <PerformanceCardSkeleton />
               ) : (
                 <Card>
                   <CardHeader>
@@ -420,32 +328,7 @@ export default function LogDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <CollaborationLogs />
               {isLoading ? (
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-40" />
-                    <Skeleton className="h-4 w-48" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-36" />
-                        <Skeleton className="h-8 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <PerformanceCardSkeleton />
               ) : (
                 <Card>
                   <CardHeader>
@@ -481,25 +364,7 @@ export default function LogDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PerformanceLogs />
               {isLoading ? (
-                <Card>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-40" />
-                    <Skeleton className="h-4 w-56" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-36" />
-                        <Skeleton className="h-8 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-6 w-12" />
-                      </div>
-                      <Skeleton className="h-4 w-48" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <PerformanceCardSkeleton />
               ) : (
                 <Card>
                   <CardHeader>

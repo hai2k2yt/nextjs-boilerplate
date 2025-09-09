@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Skeleton } from '@/components/ui/skeleton'
+import { SyncLogSkeleton } from '@/components/skeletons'
 import { trpc } from '@/lib/trpc'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -108,19 +108,7 @@ export function SyncLogs({ maxLogs = 30, filters }: SyncLogsProps) {
     }
   }
 
-  const LogEntrySkeleton = () => (
-    <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-      <Skeleton className="h-4 w-4 mt-0.5 flex-shrink-0" />
-      <div className="flex-1 min-w-0 space-y-2">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-5 w-16" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-3 w-32" />
-      </div>
-    </div>
-  )
+
 
   return (
     <Card>
@@ -154,7 +142,7 @@ export function SyncLogs({ maxLogs = 30, filters }: SyncLogsProps) {
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, index) => (
-                <LogEntrySkeleton key={index} />
+                <SyncLogSkeleton key={index} />
               ))}
             </div>
           ) : !logs || logs.length === 0 ? (

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { PostCardSkeleton } from '@/components/skeletons'
 import { trpc } from '@/lib/trpc'
 import { useToast } from '@/hooks/use-toast'
 
@@ -122,7 +123,7 @@ export default function DashboardPage() {
               {isLoading ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-12 bg-muted rounded animate-pulse" />
+                    <PostCardSkeleton key={i} />
                   ))}
                 </div>              ) : posts && posts.length > 0 ? (
                 <div className="space-y-2">

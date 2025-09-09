@@ -6,9 +6,10 @@ import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { CollaborativeFlowCanvas } from '@/components/reactflow/collaborative-flow-canvas'
+import { FlowCanvasLoadingSkeleton } from '@/components/skeletons'
 import { trpc } from '@/lib/trpc'
 
 export default function FlowRoomPage() {
@@ -31,14 +32,7 @@ export default function FlowRoomPage() {
   }, [room, session, isInitialized])
 
   if (status === 'loading' || isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Loading flow room...</p>
-        </div>
-      </div>
-    )
+    return <FlowCanvasLoadingSkeleton />
   }
 
   if (status === 'unauthenticated') {

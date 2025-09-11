@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { NextApiRequest, NextApiResponse } from 'next'
 import { initializeWebSocketManager } from '@/lib/websocket'
 

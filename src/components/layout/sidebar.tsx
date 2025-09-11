@@ -64,6 +64,7 @@ const navigationItems = [
     items: [
       { title: 'Calendar', href: '/calendar', icon: Calendar },
       { title: 'Mail', href: '/mail', icon: Mail },
+      { title: 'File Upload', href: '/files', icon: Upload },
       { title: 'React Flow', href: '/reactflow', icon: Workflow },
       { title: 'Local Collaborative', href: '/reactflow/local-collaborative', icon: Monitor },
       { title: 'Remote Collaborative', href: '/reactflow/remote-collaborative', icon: Share2 },
@@ -99,6 +100,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse, className }: Si
   const [searchQuery, setSearchQuery] = useState('')
 
   const handleQuickAction = (action: string) => {
+    // eslint-disable-next-line no-console
     console.log('Quick action:', action)
     // Implement quick actions here
   }

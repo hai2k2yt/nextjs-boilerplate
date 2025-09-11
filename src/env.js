@@ -23,10 +23,17 @@ export const env = createEnv({
     REDIS_USERNAME: z.string().optional(),
     REDIS_PASSWORD: z.string().optional(),
     REDIS_DB: z.string().optional(),
+
+    // Supabase configuration
+    SUPABASE_URL: z.string().url(),
+    SUPABASE_ANON_KEY: z.string(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string(),
   },
 
   client: {
     NEXT_PUBLIC_WS_URL: z.string().url().optional(),
+    NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
   },
 
   runtimeEnv: {
@@ -46,8 +53,15 @@ export const env = createEnv({
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,
     REDIS_DB: process.env.REDIS_DB,
 
+    // Supabase environment variables
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+
     // WebSocket URL for client
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
 
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

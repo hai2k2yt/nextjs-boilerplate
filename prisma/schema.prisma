@@ -65,6 +65,10 @@ model User {
   flowRoomParticipant FlowRoomParticipant[]   @relation("FlowRoomParticipants")
   sentInvitations     FlowRoomInvitation[]    @relation("InvitationsSent")
   receivedInvitations FlowRoomInvitation[]    @relation("InvitationsReceived")
+
+  // File relations
+  uploadedFiles       File[]                  @relation("FileOwner")
+  ownedCategories     Category[]              @relation("CategoryOwner")
 }
 
 enum UserRole {
@@ -179,4 +183,63 @@ model AuditLog {
   @@index([correlationId])
   @@index([timestamp, level])
   @@index([timestamp, category])
+}
+
+// File Management Models
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // Hex color for UI
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     String
+  owner       User     @relation("CategoryOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Relations
+  files       FileCategory[]
+
+  @@unique([name, ownerId]) // Unique category name per user
+  @@index([ownerId])
+}
+
+model File {
+  id          String   @id @default(cuid())
+  filename    String
+  originalName String  // Original filename from upload
+  mimeType    String
+  size        Int      // File size in bytes
+  storageKey  String   // Path/key in Supabase storage
+  publicUrl   String?  // Public URL if file is public
+
+  // File metadata
+  isPublic    Boolean  @default(false)
+  description String?
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  ownerId     String
+  owner       User     @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  categories  FileCategory[]
+
+  @@index([ownerId])
+  @@index([mimeType])
+  @@index([createdAt])
+}
+
+model FileCategory {
+  id         String   @id @default(cuid())
+  fileId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  file       File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, categoryId]) // Prevent duplicate category assignments
+  @@index([fileId])
+  @@index([categoryId])
 }

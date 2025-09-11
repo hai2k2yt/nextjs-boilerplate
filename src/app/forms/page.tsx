@@ -100,6 +100,7 @@ const FormActions: React.FC = () => {
 
   const handleShowValues = () => {
     const values = getValues()
+    // eslint-disable-next-line no-console
     console.log('Current form values:', values)
     alert('Current form values logged to console')
   }
@@ -154,6 +155,7 @@ export default function FormsPage() {
       successMessage: 'Form submitted successfully! 🎉',
       errorMessage: 'Failed to submit form. Please try again.',
       onSuccess: (response, data) => {
+        // eslint-disable-next-line no-console
         console.log('Form submitted successfully:', { response, data })
       },
       onError: (error, data) => {
@@ -163,6 +165,7 @@ export default function FormsPage() {
   })
 
   const handleSubmit = async (data: FormData): Promise<void> => {
+    // eslint-disable-next-line no-console
     console.log('Submitting form with data:', data)
     // Return the promise so React Hook Form can track isSubmitting
     await formSubmission.submitAsync(data)

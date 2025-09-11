@@ -37,6 +37,8 @@ function Form<T extends FieldValues>({
     } catch (error) {
       // Error handling is done by React Query or the onSubmit handler
       console.error('Form submission error:', error)
+      // Re-throw to let the form handle the error appropriately
+      throw error
     }
   })
 

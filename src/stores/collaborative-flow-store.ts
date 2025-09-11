@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'

@@ -88,6 +88,7 @@ export const flowRoomRouter = createTRPCRouter({
           },
           lastSyncedAt: new Date().toISOString(),
         })
+        // eslint-disable-next-line no-console
         console.log(`Cached new room ${room.id} in Redis`)
       } catch (error) {
         console.warn('Failed to cache room in Redis:', error)

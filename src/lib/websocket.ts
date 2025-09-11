@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { Server as SocketIOServer, Socket } from 'socket.io'
 import { Server as HTTPServer } from 'http'
 import { db } from '@/server/db'

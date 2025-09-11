@@ -52,6 +52,7 @@ const ApiFormActions: React.FC = () => {
 
   const handleShowValues = () => {
     const values = getValues()
+    // eslint-disable-next-line no-console
     console.log('Current form values:', values)
     alert('Current form values logged to console')
   }
@@ -80,6 +81,7 @@ export const ApiSelectExamples: React.FC = () => {
       successMessage: 'API form submitted successfully! 🎉',
       errorMessage: 'Failed to submit form. Please try again.',
       onSuccess: (response, data) => {
+        // eslint-disable-next-line no-console
         console.log('API form submitted successfully:', { response, data })
       },
       onError: (error, data) => {
@@ -89,6 +91,7 @@ export const ApiSelectExamples: React.FC = () => {
   })
 
   const handleSubmit = async (data: ApiFormData): Promise<void> => {
+    // eslint-disable-next-line no-console
     console.log('Submitting API form with data:', data)
     await formSubmission.submitAsync(data)
   }

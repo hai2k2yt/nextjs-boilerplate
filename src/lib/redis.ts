@@ -53,6 +53,7 @@ redis.on('error', (error) => {
 })
 
 redis.on('connect', () => {
+  // eslint-disable-next-line no-console
   console.log('Redis connected successfully')
 })
 

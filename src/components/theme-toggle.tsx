@@ -24,6 +24,7 @@ export function ThemeToggle() {
   }
 
   const toggleTheme = () => {
+    // eslint-disable-next-line no-console
     console.log('Current theme:', theme, 'Resolved:', resolvedTheme)
     if (theme === 'system') {
       setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')

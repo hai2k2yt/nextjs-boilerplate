@@ -48,10 +48,12 @@ function CollaborativeFlowCanvasInner({ roomId, className }: CollaborativeFlowCa
   // Connect to room on mount
   useEffect(() => {
     if (session?.user?.id && roomId && !isInitialized) {
+      // eslint-disable-next-line no-console
       console.log('Connecting to room:', roomId)
       connectToRoom(roomId, session.user.id)
         .then(() => {
           setIsInitialized(true)
+          // eslint-disable-next-line no-console
           console.log('Successfully connected to room')
         })
         .catch((error) => {

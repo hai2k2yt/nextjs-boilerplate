@@ -11,6 +11,9 @@ export { CheckboxField } from './checkbox-field'
 export { RadioField } from './radio-field'
 export { DatePickerField } from './date-picker-field'
 
+// File upload form fields
+export { CategoryField } from '../file-upload/category-selector'
+
 // Example components
 export { ApiSelectExamples } from './api-select-examples'
 

@@ -17,6 +17,12 @@ module.exports = {
         varsIgnorePattern: '^_',
       },
     ],
+    'no-console': [
+      'warn',
+      {
+        allow: ['warn', 'error']
+      }
+    ],
   },
   settings: {
     tailwindcss: {

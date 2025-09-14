@@ -50,16 +50,22 @@ export async function POST(request: NextRequest) {
 
     // Generate storage path
     const storageKey = generateStoragePath(session.user.id, file.name)
-    
+
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer()
     const buffer = new Uint8Array(arrayBuffer)
+
+    // Normalize MIME type for markdown files
+    const extension = '.' + file.name.split('.').pop()?.toLowerCase()
+    const normalizedMimeType = extension === '.md' && (!file.type || file.type === '' || file.type === 'text/plain' || file.type === 'application/octet-stream')
+      ? 'text/markdown'
+      : file.type
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(STORAGE_BUCKET)
       .upload(storageKey, buffer, {
-        contentType: file.type,
+        contentType: normalizedMimeType,
         duplex: 'half',
       })
 
@@ -84,7 +90,7 @@ export async function POST(request: NextRequest) {
         publicUrl: urlData.publicUrl,
         filename: file.name,
         originalName: file.name,
-        mimeType: file.type,
+        mimeType: normalizedMimeType,
         size: file.size,
       }
     })

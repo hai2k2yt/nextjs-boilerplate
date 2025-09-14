@@ -1,0 +1,22 @@
+{
+  "name": "Test JSON File",
+  "description": "This is a test JSON file for file upload testing",
+  "version": "1.0.0",
+  "features": [
+    "JSON file upload",
+    "File preview",
+    "File categorization",
+    "File search"
+  ],
+  "metadata": {
+    "created": "2025-09-14",
+    "author": "Test User",
+    "purpose": "Testing file upload functionality"
+  },
+  "testData": {
+    "numbers": [1, 2, 3, 4, 5],
+    "strings": ["hello", "world", "test"],
+    "boolean": true,
+    "null_value": null
+  }
+}

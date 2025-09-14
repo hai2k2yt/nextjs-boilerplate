@@ -42,23 +42,29 @@ export const FILE_UPLOAD_CONFIG = {
 // Helper function to validate file (client-safe)
 export function validateFile(file: File) {
   const errors: string[] = []
-  
+
   // Check file size
   if (file.size > FILE_UPLOAD_CONFIG.maxFileSize) {
     errors.push(`File size must be less than ${FILE_UPLOAD_CONFIG.maxFileSize / (1024 * 1024)}MB`)
   }
-  
-  // Check MIME type
-  if (!FILE_UPLOAD_CONFIG.allowedMimeTypes.includes(file.type)) {
-    errors.push(`File type ${file.type} is not allowed`)
-  }
-  
-  // Check file extension
+
+  // Check file extension first
   const extension = '.' + file.name.split('.').pop()?.toLowerCase()
   if (!FILE_UPLOAD_CONFIG.allowedExtensions.includes(extension)) {
     errors.push(`File extension ${extension} is not allowed`)
   }
-  
+
+  // Check MIME type with special handling for markdown files
+  const isMarkdownFile = extension === '.md'
+  const hasValidMimeType = FILE_UPLOAD_CONFIG.allowedMimeTypes.includes(file.type)
+  const isEmptyMimeType = !file.type || file.type === ''
+
+  // Allow markdown files even if browser doesn't set correct MIME type
+  // Common MIME types browsers send for .md files: '', 'text/plain', 'application/octet-stream'
+  if (!hasValidMimeType && !(isMarkdownFile && (isEmptyMimeType || file.type === 'text/plain' || file.type === 'application/octet-stream'))) {
+    errors.push(`File type ${file.type || 'unknown'} is not allowed`)
+  }
+
   return {
     isValid: errors.length === 0,
     errors

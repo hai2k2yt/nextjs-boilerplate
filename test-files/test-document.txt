@@ -1,0 +1,11 @@
+This is a test text file for file upload testing.
+
+It contains multiple lines of text to test the text file preview functionality.
+
+Line 1: Testing text file upload
+Line 2: Testing file preview modal
+Line 3: Testing file download functionality
+Line 4: Testing file categorization
+Line 5: Testing file search and filtering
+
+This file should be successfully uploaded and previewed in the file management system.

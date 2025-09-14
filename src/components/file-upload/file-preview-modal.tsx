@@ -13,10 +13,13 @@ import {
   Image as ImageIcon,
   File as FileIcon,
   AlertCircle,
-  Loader2
+  Loader2,
+  FileSpreadsheet
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc'
 import { getFileTypeCategory } from '@/lib/file-utils'
+import { ExcelPreview } from './excel-preview'
+import { WordPreview } from './word-preview'
 
 interface FilePreviewModalProps {
   file: any
@@ -35,14 +38,35 @@ export function FilePreviewModal({ file, isOpen, onClose, onDownload }: FilePrev
 
   const utils = trpc.useUtils()
 
-  const isTextFile = file?.mimeType?.startsWith('text/') || 
-                    file?.mimeType === 'application/json' ||
-                    file?.filename?.endsWith('.md') ||
-                    file?.filename?.endsWith('.txt') ||
-                    file?.filename?.endsWith('.json')
+  // Image files: JPG, PNG, GIF, WebP, SVG
+  const isImageFile = file?.mimeType?.startsWith('image/') ||
+                      file?.filename?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)
 
-  const isImageFile = file?.mimeType?.startsWith('image/')
-  const isPdfFile = file?.mimeType === 'application/pdf'
+  // PDF files
+  const isPdfFile = file?.mimeType === 'application/pdf' ||
+                    file?.filename?.endsWith('.pdf')
+
+  // Word documents: DOC, DOCX
+  const isWordFile = file?.mimeType === 'application/msword' ||
+                     file?.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                     file?.filename?.endsWith('.doc') ||
+                     file?.filename?.endsWith('.docx')
+
+  // Spreadsheet files: XLS, XLSX, CSV
+  const isExcelFile = file?.mimeType === 'application/vnd.ms-excel' ||
+                      file?.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                      file?.mimeType === 'text/csv' ||
+                      file?.filename?.endsWith('.xls') ||
+                      file?.filename?.endsWith('.xlsx') ||
+                      file?.filename?.endsWith('.csv')
+
+  // Text files: TXT, MD, JSON (excluding CSV which is handled by Excel preview)
+  const isTextFile = (file?.mimeType?.startsWith('text/') ||
+                     file?.mimeType === 'application/json' ||
+                     file?.filename?.endsWith('.md') ||
+                     file?.filename?.endsWith('.txt') ||
+                     file?.filename?.endsWith('.json')) &&
+                     !isExcelFile // Exclude CSV files from text files
 
   const loadPreview = useCallback(async () => {
     if (!file) return
@@ -68,6 +92,7 @@ export function FilePreviewModal({ file, isOpen, onClose, onDownload }: FilePrev
         const content = await response.text()
         setPreviewContent(content)
       }
+      // For Excel files, we don't need to fetch content here as ExcelPreview component handles it
     } catch (err) {
       console.error('Preview failed:', err)
       setError('Failed to load file preview')
@@ -101,6 +126,9 @@ export function FilePreviewModal({ file, isOpen, onClose, onDownload }: FilePrev
 
   const getFileIcon = () => {
     if (isImageFile) return <ImageIcon className="h-5 w-5" />
+    if (isExcelFile) return <FileSpreadsheet className="h-5 w-5" />
+    if (isWordFile) return <FileText className="h-5 w-5" />
+    if (isPdfFile) return <FileText className="h-5 w-5" />
     if (isTextFile) return <FileText className="h-5 w-5" />
     return <FileIcon className="h-5 w-5" />
   }
@@ -164,6 +192,24 @@ export function FilePreviewModal({ file, isOpen, onClose, onDownload }: FilePrev
             title={file.originalName || file.filename}
           />
         </div>
+      )
+    }
+
+    if (isExcelFile && signedUrl) {
+      return (
+        <ExcelPreview
+          fileUrl={signedUrl}
+          fileName={file.originalName || file.filename}
+        />
+      )
+    }
+
+    if (isWordFile && signedUrl) {
+      return (
+        <WordPreview
+          fileUrl={signedUrl}
+          fileName={file.originalName || file.filename}
+        />
       )
     }
 

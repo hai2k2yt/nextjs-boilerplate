@@ -136,13 +136,14 @@ export function FileList({ onFileSelect, onFilePreview }: FileListProps) {
   }
 
   const handlePreview = (file: any) => {
+    // Always open preview modal with force re-render
+    setPreviewFile(file)
+    setIsPreviewOpen(true)
+    setModalKey(prev => prev + 1) // Force modal re-render
+
+    // Also call parent handler if provided
     if (onFilePreview) {
       onFilePreview(file)
-    } else {
-      // Open preview modal with force re-render
-      setPreviewFile(file)
-      setIsPreviewOpen(true)
-      setModalKey(prev => prev + 1) // Force modal re-render
     }
   }
 

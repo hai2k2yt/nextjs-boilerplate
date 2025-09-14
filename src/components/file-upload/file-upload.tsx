@@ -10,7 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { validateFile, getFileTypeCategory } from '@/lib/file-utils'
 import { trpc } from '@/lib/trpc'
-import { Form, InputField, TextareaField, CheckboxField, CategoryField } from '@/components/forms'
+import { Form, InputField, TextareaField, CheckboxField } from '@/components/forms'
+import { CategorySelector } from './category-selector'
 
 const uploadFormSchema = z.object({
   filename: z.string().min(1, 'Filename is required').max(255, 'Filename too long'),
@@ -247,7 +248,7 @@ export function FileUpload({
             rows={3}
           />
 
-          <CategoryField
+          <CategorySelector
             name="categoryIds"
             label="Categories"
             description="Select categories to organize your file"

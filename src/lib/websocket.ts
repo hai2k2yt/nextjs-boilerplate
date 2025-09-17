@@ -7,22 +7,24 @@ import { CustomNode, CustomEdge } from '@/components/reactflow/node-types'
 import { COLLABORATION_CONSTANTS, WEBSOCKET_EVENTS, FLOW_CHANGE_TYPES } from '@/lib/constants/collaboration'
 // Removed in-memory logger - using database-only logging
 
-// Helper function to log to database
+// Helper function to log to database - using direct database calls instead of HTTP fetch
 async function logToDatabase(event: string, action: string, userId?: string, roomId?: string, details?: any) {
   try {
-    await fetch('/api/logs/database', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event,
-        action,
+    // Create audit log entry directly in database
+    await db.auditLog.create({
+      data: {
+        message: event,        // event -> message
+        category: action,      // action -> category
+        level: 'INFO',         // default level
         userId,
         roomId,
-        details: details || {}
-      })
+        metadata: details || {},  // details -> metadata
+        timestamp: new Date()
+      }
     })
+    console.log(`✅ Logged to database: ${event} (${action})`)
   } catch (error) {
-    console.warn('Failed to log to database:', error)
+    console.error('❌ Failed to log to database:', error)
   }
 }
 
@@ -102,6 +104,9 @@ export class FlowWebSocketManager {
   private databaseQueues: Map<string, FlowChangeEvent[]> = new Map()
   private databaseTimers: Map<string, NodeJS.Timeout> = new Map()
 
+  // Connection tracking to prevent duplicate logging
+  private connectionLogged: Set<string> = new Set()
+
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
@@ -180,7 +185,24 @@ export class FlowWebSocketManager {
           // Notify other participants
           socket.to(roomId).emit(WEBSOCKET_EVENTS.PARTICIPANT_JOINED, participant)
 
-          logToDatabase('WebSocket room_joined', 'websocket', user.id, roomId, { participantName: user.name })
+          // Enhanced WebSocket connection logging (prevent duplicates)
+          const connectionKey = `${roomId}-${user.id}`
+          if (!this.connectionLogged.has(connectionKey)) {
+            const existingParticipants = this.getActiveParticipants(roomId).length - 1 // Exclude current user
+            const connectionEventName = existingParticipants > 0 ?
+              `WebSocket: User joined active room (${existingParticipants + 1} total)` :
+              'WebSocket: User created new session (first participant)'
+
+            logToDatabase(connectionEventName, 'websocket', user.id, roomId, {
+              participantName: user.name,
+              role: participant.role,
+              existingParticipants: existingParticipants,
+              totalParticipants: existingParticipants + 1,
+              connectionType: existingParticipants > 0 ? 'join_existing' : 'create_session'
+            })
+
+            this.connectionLogged.add(connectionKey)
+          }
           console.log(`User ${user.id} joined room ${roomId} successfully`)
 
         } catch (error) {
@@ -205,24 +227,66 @@ export class FlowWebSocketManager {
 
         // Removed timer logging
         try {
+          // Check queue state before adding to Redis
+          const actionDetails = this.getActionDetails(event.type, event.data)
+          const cacheExists = await flowRedisManager.hasPendingChanges(socket.roomId)
+
           // Store change in Redis immediately for persistence
           await flowRedisManager.addPendingChange(socket.roomId, flowEvent)
 
-          // Queue for delayed broadcast (500ms)
-          this.queueBroadcastEvent(socket.roomId, flowEvent)
+          // Enhanced Redis queue operations logging
+          const redisEventName = cacheExists ?
+            'Redis: Insert to existing queue' :
+            'Redis: Create new queue'
 
-          // Queue for delayed database sync (30 seconds)
-          this.queueDatabaseSync(socket.roomId, flowEvent)
-
-          // Log important React Flow action to database
-          const actionDetails = this.getActionDetails(event.type, event.data)
-          logToDatabase('React Flow change received', 'collaboration', socket.userId, socket.roomId, {
+          logToDatabase(redisEventName, 'collaboration', socket.userId, socket.roomId, {
             changeType: event.type,
             timestamp: flowEvent.timestamp,
             action: actionDetails.action,
-            details: actionDetails.details,
             nodeCount: actionDetails.nodeCount,
-            edgeCount: actionDetails.edgeCount
+            edgeCount: actionDetails.edgeCount,
+            changeDetails: actionDetails.details,
+            queueOperation: cacheExists ? 'insert_to_existing_queue' : 'create_new_queue',
+            redisKey: `flow:${socket.roomId}:pending`,
+            queueState: cacheExists ? 'existing' : 'new'
+          })
+
+          // Queue for delayed broadcast (500ms)
+          const broadcastQueueSize = this.getBroadcastQueueSize(socket.roomId)
+          const broadcastEventName = broadcastQueueSize > 0 ?
+            'Broadcast: Add to existing queue' :
+            'Broadcast: Create new queue'
+
+          this.queueBroadcastEvent(socket.roomId, flowEvent)
+          logToDatabase(broadcastEventName, 'collaboration', socket.userId, socket.roomId, {
+            changeType: event.type,
+            broadcastDelay: `${COLLABORATION_CONSTANTS.BROADCAST_DELAY}ms`,
+            action: actionDetails.action,
+            nodeCount: actionDetails.nodeCount,
+            edgeCount: actionDetails.edgeCount,
+            changeDetails: actionDetails.details,
+            queueOperation: broadcastQueueSize > 0 ? 'add_to_existing_queue' : 'create_new_queue',
+            queueSize: broadcastQueueSize + 1,
+            scheduledFor: new Date(Date.now() + COLLABORATION_CONSTANTS.BROADCAST_DELAY).toISOString()
+          })
+
+          // Queue for delayed database sync (30 seconds)
+          const dbQueueSize = this.getDatabaseQueueSize(socket.roomId)
+          const dbEventName = dbQueueSize > 0 ?
+            'Database: Add to existing sync queue' :
+            'Database: Create new sync queue'
+
+          this.queueDatabaseSync(socket.roomId, flowEvent)
+          logToDatabase(dbEventName, 'collaboration', socket.userId, socket.roomId, {
+            changeType: event.type,
+            syncDelay: `${COLLABORATION_CONSTANTS.DATABASE_SYNC_DELAY / 1000}s`,
+            action: actionDetails.action,
+            nodeCount: actionDetails.nodeCount,
+            edgeCount: actionDetails.edgeCount,
+            changeDetails: actionDetails.details,
+            queueOperation: dbQueueSize > 0 ? 'add_to_existing_sync_queue' : 'create_new_sync_queue',
+            queueSize: dbQueueSize + 1,
+            scheduledFor: new Date(Date.now() + COLLABORATION_CONSTANTS.DATABASE_SYNC_DELAY).toISOString()
           })
 
         } catch (error) {
@@ -269,6 +333,10 @@ export class FlowWebSocketManager {
     try {
       // Remove from Redis
       await flowRedisManager.removeParticipant(roomId, socket.userId)
+
+      // Clean up connection tracking
+      const connectionKey = `${roomId}-${socket.userId}`
+      this.connectionLogged.delete(connectionKey)
 
       // Leave socket room
       socket.leave(roomId)
@@ -332,11 +400,27 @@ export class FlowWebSocketManager {
         console.log(`Broadcasted ${changeType} change to room ${roomId}`)
       }
 
+      // Log broadcast completion with detailed event name
+      const participantCount = this.getActiveParticipants(roomId).length
+      const broadcastEventName = participantCount > 1 ?
+        `Broadcast: Queue broadcast to clients (${participantCount} participants)` :
+        'Broadcast: Queue broadcast to clients (no other participants)'
+
+      logToDatabase(broadcastEventName, 'collaboration', undefined, roomId, {
+        eventsProcessed: events.length,
+        consolidatedChanges: consolidatedChanges.size,
+        broadcastDelay: `${COLLABORATION_CONSTANTS.BROADCAST_DELAY}ms`,
+        changeTypes: Array.from(consolidatedChanges.keys()),
+        participantCount: participantCount,
+        broadcastScope: participantCount > 1 ? 'multi_user' : 'single_user',
+        timestamp: new Date().toISOString()
+      })
+
+      console.log(`Broadcasted ${consolidatedChanges.size} consolidated changes to room ${roomId}`)
+
       // Clear the queue and timer
       this.broadcastQueues.delete(roomId)
       this.broadcastTimers.delete(roomId)
-
-      console.log(`Broadcasted ${consolidatedChanges.size} consolidated changes to room ${roomId}`)
 
     } catch (error) {
       console.error('Error processing broadcast queue:', error)
@@ -386,7 +470,6 @@ export class FlowWebSocketManager {
       const updatedFlowData = this.applyChangesToFlowData(roomData.flowData, events)
 
       // Update database (cast to any for Prisma JSON compatibility)
-      // Database update
       await db.flowRoom.update({
         where: { id: roomId },
         data: {
@@ -394,7 +477,6 @@ export class FlowWebSocketManager {
           updatedAt: new Date()
         }
       })
-      // Database operation completed
 
       // Update Redis cache
       await flowRedisManager.cacheFlowRoom(roomId, {
@@ -403,14 +485,26 @@ export class FlowWebSocketManager {
         lastSyncedAt: new Date().toISOString()
       })
 
+      // Log detailed database sync completion with specific event name
+      const syncSummary = this.getSyncSummary(events)
+      const totalChanges = syncSummary.totalNodeChanges + syncSummary.totalEdgeChanges
+      const dbEventName = totalChanges > 10 ?
+        `Database: Sync to db completed (${totalChanges} changes)` :
+        `Database: Sync to db completed (${totalChanges} changes)`
+
+      logToDatabase(dbEventName, 'collaboration', undefined, roomId, {
+        eventsProcessed: events.length,
+        syncSummary: syncSummary,
+        syncDuration: `${COLLABORATION_CONSTANTS.DATABASE_SYNC_DELAY / 1000}s`,
+        syncType: totalChanges > 10 ? 'bulk_sync' : 'standard_sync',
+        totalChanges: totalChanges,
+        lastSyncedAt: new Date().toISOString()
+      })
+      console.log(`Synced ${events.length} changes to database for room ${roomId}:`, syncSummary)
+
       // Clear the queue and timer
       this.databaseQueues.delete(roomId)
       this.databaseTimers.delete(roomId)
-
-      // Log detailed database sync completion
-      const syncSummary = this.getSyncSummary(events)
-      // Database sync completed
-      console.log(`Synced ${events.length} changes to database for room ${roomId}:`, syncSummary)
 
     } catch (error) {
       // Error processing database queue
@@ -793,6 +887,35 @@ export class FlowWebSocketManager {
   }
 
   /**
+   * Get current broadcast queue size for a room
+   */
+  private getBroadcastQueueSize(roomId: string): number {
+    const timeout = this.broadcastTimers.get(roomId)
+    const events = this.broadcastQueues.get(roomId) || []
+    return timeout ? events.length : 0
+  }
+
+  /**
+   * Get current database sync queue size for a room
+   */
+  private getDatabaseQueueSize(roomId: string): number {
+    const timeout = this.databaseTimers.get(roomId)
+    const events = this.databaseQueues.get(roomId) || []
+    return timeout ? events.length : 0
+  }
+
+  /**
+   * Get active participants in a room
+   */
+  private getActiveParticipants(roomId: string): string[] {
+    const sockets = Array.from(this.io.sockets.sockets.values())
+    return sockets
+      .filter(socket => socket.roomId === roomId)
+      .map(socket => socket.userId)
+      .filter((userId, index, array) => array.indexOf(userId) === index) // Remove duplicates
+  }
+
+  /**
    * Get a human-readable reason for validation failure
    */
   private getValidationFailureReason(change: FlowChangeEvent, currentState: FlowData): string {
@@ -1155,7 +1278,19 @@ export class FlowWebSocketManager {
         const bulkNodesData = data as BulkNodesData
         nodeCount = bulkNodesData.nodes.length
         action = nodeCount === 0 ? 'clear_all_nodes' : 'bulk_update_nodes'
-        details = { nodeCount }
+
+        // Enhanced metadata for bulk nodes
+        details = {
+          nodeCount,
+          operation: nodeCount === 0 ? 'clear' : 'bulk_update',
+          nodes: bulkNodesData.nodes.map(node => ({
+            id: node.id,
+            type: node.type,
+            label: node.data?.label || 'Untitled',
+            position: node.position,
+            selected: node.selected || false
+          }))
+        }
         break
 
       case FLOW_CHANGE_TYPES.GRANULAR_NODES:
@@ -1179,10 +1314,54 @@ export class FlowWebSocketManager {
           action = 'modify_nodes'
         }
 
+        // Enhanced metadata for granular node changes
         details = {
           changeTypes: uniqueChangeTypes,
           nodeCount,
-          nodeIds: changes.map(c => this.getNodeChangeId(c))
+          changes: changes.map(change => {
+            const baseChange = {
+              type: change.type,
+              id: this.getNodeChangeId(change)
+            }
+
+            // Add specific details based on change type
+            if (change.type === 'add' && 'item' in change && change.item) {
+              return {
+                ...baseChange,
+                nodeType: change.item.type,
+                label: change.item.data?.label || 'Untitled',
+                position: change.item.position,
+                data: change.item.data
+              }
+            } else if (change.type === 'position' && 'position' in change) {
+              return {
+                ...baseChange,
+                newPosition: change.position,
+                positionAbsolute: change.positionAbsolute
+              }
+            } else if (change.type === 'replace' && 'item' in change && change.item) {
+              return {
+                ...baseChange,
+                nodeType: change.item.type,
+                label: change.item.data?.label || 'Untitled',
+                position: change.item.position,
+                selected: change.item.selected || false,
+                data: change.item.data
+              }
+            } else if (change.type === 'remove') {
+              return {
+                ...baseChange,
+                operation: 'delete'
+              }
+            } else if (change.type === 'select') {
+              return {
+                ...baseChange,
+                selected: 'selected' in change ? change.selected : true
+              }
+            }
+
+            return baseChange
+          })
         }
         break
 
@@ -1190,7 +1369,23 @@ export class FlowWebSocketManager {
         const bulkEdgesData = data as BulkEdgesData
         edgeCount = bulkEdgesData.edges.length
         action = edgeCount === 0 ? 'clear_all_edges' : 'bulk_update_edges'
-        details = { edgeCount }
+
+        // Enhanced metadata for bulk edges
+        details = {
+          edgeCount,
+          operation: edgeCount === 0 ? 'clear' : 'bulk_update',
+          edges: bulkEdgesData.edges.map(edge => ({
+            id: edge.id,
+            type: edge.type || 'default',
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+            label: edge.label || '',
+            animated: edge.animated || false,
+            selected: edge.selected || false
+          }))
+        }
         break
 
       case FLOW_CHANGE_TYPES.GRANULAR_EDGES:
@@ -1209,17 +1404,59 @@ export class FlowWebSocketManager {
           action = 'modify_edges'
         }
 
+        // Enhanced metadata for granular edge changes
         details = {
           changeTypes: uniqueEdgeChangeTypes,
           edgeCount,
-          edgeIds: edgeChanges.map(c => this.getEdgeChangeId(c))
+          changes: edgeChanges.map(change => {
+            const baseChange = {
+              type: change.type,
+              id: this.getEdgeChangeId(change)
+            }
+
+            // Add specific details based on change type
+            if (change.type === 'add' && 'item' in change && change.item) {
+              return {
+                ...baseChange,
+                edgeType: change.item.type || 'default',
+                source: change.item.source,
+                target: change.item.target,
+                sourceHandle: change.item.sourceHandle,
+                targetHandle: change.item.targetHandle,
+                label: change.item.label || '',
+                animated: change.item.animated || false,
+                data: change.item.data
+              }
+            } else if (change.type === 'remove') {
+              return {
+                ...baseChange,
+                operation: 'delete'
+              }
+            } else if (change.type === 'select') {
+              return {
+                ...baseChange,
+                selected: 'selected' in change ? change.selected : true
+              }
+            }
+
+            return baseChange
+          })
         }
         break
 
       case FLOW_CHANGE_TYPES.CURSOR_MOVE:
         action = 'cursor_move'
         const cursorData = data as CursorMoveData
-        details = { x: cursorData.x, y: cursorData.y }
+
+        // Enhanced metadata for cursor movement
+        details = {
+          position: {
+            x: cursorData.x,
+            y: cursorData.y
+          },
+          timestamp: new Date().toISOString(),
+          movement: 'cursor_position_update'
+        }
         break
     }
 

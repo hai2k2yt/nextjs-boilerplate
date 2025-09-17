@@ -172,6 +172,12 @@ export class FlowRedisManager {
     return changes.map(change => JSON.parse(change))
   }
 
+  // Check if room has pending changes
+  async hasPendingChanges(roomId: string): Promise<boolean> {
+    const length = await redis.llen(FLOW_ROOM_CHANGES_KEY(roomId))
+    return length > 0
+  }
+
   // Ensure room data exists in cache (with database fallback)
   async ensureRoomCached(roomId: string, dbFallback?: () => Promise<any>): Promise<FlowRoomCache | null> {
     let roomData = await this.getFlowRoom(roomId)

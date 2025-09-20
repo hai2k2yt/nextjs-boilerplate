@@ -1,6 +1,12 @@
 /* eslint-disable no-console */
 import { Server as SocketIOServer, Socket } from 'socket.io'
 import { Server as HTTPServer } from 'http'
+
+// Extend Socket interface to include custom properties
+interface CustomSocket extends Socket {
+  roomId?: string
+  userId?: string
+}
 import { db } from '@/server/db'
 import { flowRedisManager, ParticipantInfo } from '@/lib/redis'
 import { CustomNode, CustomEdge } from '@/components/reactflow/node-types'
@@ -908,10 +914,11 @@ export class FlowWebSocketManager {
    * Get active participants in a room
    */
   private getActiveParticipants(roomId: string): string[] {
-    const sockets = Array.from(this.io.sockets.sockets.values())
+    const sockets = Array.from(this.io.sockets.sockets.values()) as CustomSocket[]
     return sockets
       .filter(socket => socket.roomId === roomId)
       .map(socket => socket.userId)
+      .filter((userId): userId is string => userId !== undefined)
       .filter((userId, index, array) => array.indexOf(userId) === index) // Remove duplicates
   }
 
@@ -1423,7 +1430,7 @@ export class FlowWebSocketManager {
                 target: change.item.target,
                 sourceHandle: change.item.sourceHandle,
                 targetHandle: change.item.targetHandle,
-                label: change.item.label || '',
+                label: (change.item as any).label || '',
                 animated: change.item.animated || false,
                 data: change.item.data
               }

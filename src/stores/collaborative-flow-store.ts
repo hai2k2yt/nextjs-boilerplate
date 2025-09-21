@@ -501,8 +501,8 @@ export const useRemoteCollaborativeFlowStore = create<FlowState & FlowActions>()
                 get().updateParticipantCursor(data.userId, data.cursor)
               })
 
-              socket.on('operation_conflict', (data: { type: string; timestamp: number; reason: string; suggestion: string }) => {
-                console.warn('Operation conflict:', data)
+              socket.on('operation_conflict', (_data: { type: string; timestamp: number; reason: string; suggestion: string }) => {
+                // Operation conflict detected
                 // You can add toast notification here or handle conflicts as needed
                 // For now, just log the conflict
               })

@@ -55,7 +55,7 @@ export function fixDuplicateNodeIds(nodes: CustomNode[]): CustomNode[] {
       // Generate a new unique ID for this duplicate
       const newId = generateUniqueNodeId(nodes)
       seenIds.add(newId)
-      console.warn(`Fixed duplicate node ID: ${node.id} -> ${newId}`)
+      // Fixed duplicate node ID
       return { ...node, id: newId }
     } else {
       seenIds.add(node.id)

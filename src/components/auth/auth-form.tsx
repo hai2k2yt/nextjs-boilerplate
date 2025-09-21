@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -68,10 +69,12 @@ function PasswordValidationDisplay({ password, errors }: { password: string; err
   )
 }
 
-export function AuthForm() {
+function AuthFormContent() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
-  
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const registerMutation = trpc.auth.register.useMutation()
 
   const loginForm = useForm<LoginFormData>({
@@ -99,6 +102,8 @@ export function AuthForm() {
   const onLogin = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
+      const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard'
+
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
@@ -111,12 +116,13 @@ export function AuthForm() {
           description: 'Invalid email or password',
           variant: 'destructive',
         })
-      } else {
+      } else if (result?.ok) {
         toast({
           title: 'Success',
           description: 'Logged in successfully',
         })
-        // Redirect will happen automatically
+        // Redirect to the intended page or dashboard
+        router.push(callbackUrl)
       }
     } catch {
       toast({
@@ -348,5 +354,22 @@ export function AuthForm() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export function AuthForm() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Welcome</CardTitle>
+            <CardDescription>Loading...</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <AuthFormContent />
+    </Suspense>
   )
 }

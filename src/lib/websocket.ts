@@ -28,7 +28,7 @@ async function logToDatabase(event: string, action: string, userId?: string, roo
         timestamp: new Date()
       }
     })
-    console.log(`✅ Logged to database: ${event} (${action})`)
+    // Successfully logged to database
   } catch (error) {
     console.error('❌ Failed to log to database:', error)
   }
@@ -1138,18 +1138,12 @@ export class FlowWebSocketManager {
 
     // Log consolidation summary
     if (changes.length > 1) {
-      const summary = Array.from(changeTypeCounts.entries())
+      const _summary = Array.from(changeTypeCounts.entries())
         .map(([type, count]) => `${type}:${count}`)
         .join(', ')
-      const granularNodesCount = accumulatedGranularNodes.length
-      const granularEdgesCount = accumulatedGranularEdges.length
-      console.log(`Consolidated ${changes.length} changes (${summary}) into ${consolidated.size} final changes`)
-      if (granularNodesCount > 0) {
-        console.log(`  - Accumulated ${granularNodesCount} granular node changes`)
-      }
-      if (granularEdgesCount > 0) {
-        console.log(`  - Accumulated ${granularEdgesCount} granular edge changes`)
-      }
+      const _granularNodesCount = accumulatedGranularNodes.length
+      const _granularEdgesCount = accumulatedGranularEdges.length
+      // Consolidated changes for batch processing
     }
 
     return consolidated

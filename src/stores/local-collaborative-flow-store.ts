@@ -256,7 +256,7 @@ export const useLocalCollaborativeFlowStore = create<LocalCollaborativeFlowState
             // Notify other tabs about this new connection
             state.broadcastToTabs({ type: LOCAL_STORAGE_EVENTS.TAB_CONNECTED, sessionId })
           } catch {
-            console.warn('BroadcastChannel not supported, falling back to storage events')
+            // BroadcastChannel not supported, falling back to storage events
             // Fallback to storage events for older browsers
             window.addEventListener('storage', (event) => {
               if (event.key === 'local_collaborative_broadcast' && event.newValue) {

@@ -36,6 +36,18 @@ export const authOptions: NextAuthOptions = {
     error: '/auth', // Error code passed in query string as ?error=
   },
   callbacks: {
+    redirect: async ({ url, baseUrl }) => {
+      // If the URL is relative, make it absolute
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`
+      }
+      // If the URL is on the same origin, allow it
+      if (new URL(url).origin === baseUrl) {
+        return url
+      }
+      // Otherwise, redirect to dashboard
+      return `${baseUrl}/dashboard`
+    },
     session: ({ session, token }) => {
       if (token && session.user) {
         session.user.id = token.sub!

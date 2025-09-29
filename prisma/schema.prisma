@@ -72,6 +72,9 @@ model User {
 
   // Calendar relations
   ownedEvents         Event[]                 @relation("EventOwner")
+
+  // Payment relations
+  payments            Payment[]               @relation("PaymentUser")
 }
 
 enum UserRole {
@@ -292,4 +295,115 @@ enum EventType {
   REMINDER
   AVAILABILITY
   BLOCKED
+}
+
+// Payment Models
+model Payment {
+  id                String        @id @default(cuid())
+
+  // Basic payment information
+  amount            Decimal       @db.Decimal(19, 4) // Support up to 999,999,999,999,999.9999
+  currency          String        @default("USD")
+  description       String?
+
+  // Payment method and provider
+  paymentMethod     PaymentMethod
+  provider          String        // momo, zalopay, vnpay, vietqr, paypal, stripe
+
+  // Payment status and tracking
+  status            PaymentStatus @default(PENDING)
+
+  // External references
+  externalId        String?       // Payment ID from the payment provider
+  transactionId     String?       // Transaction ID from the payment provider
+  orderId           String        // Internal order ID
+
+  // Payment URLs and redirects
+  paymentUrl        String?       // URL to redirect user for payment
+  returnUrl         String?       // URL to return after payment
+  cancelUrl         String?       // URL to return if payment is cancelled
+
+  // Provider-specific data
+  providerData      Json?         // Store provider-specific response data
+
+  // Payment metadata
+  metadata          Json?         // Additional payment information
+
+  // Error handling
+  errorCode         String?       // Error code if payment failed
+  errorMessage      String?       // Error message if payment failed
+
+  // Timestamps
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  paidAt            DateTime?     // When payment was completed
+  expiresAt         DateTime?     // When payment link expires
+
+  // Relations
+  userId            String
+  user              User          @relation("PaymentUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Payment events for audit trail
+  events            PaymentEvent[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentMethod])
+  @@index([provider])
+  @@index([externalId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
+enum PaymentMethod {
+  MOMO
+  ZALOPAY
+  VNPAY
+  VIETQR
+  PAYPAL
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING       // Payment created but not yet processed
+  PROCESSING    // Payment is being processed
+  COMPLETED     // Payment successfully completed
+  FAILED        // Payment failed
+  CANCELLED     // Payment was cancelled by user
+  EXPIRED       // Payment link expired
+  REFUNDED      // Payment was refunded
+  PARTIALLY_REFUNDED // Payment was partially refunded
+}
+
+// Payment event log for detailed tracking
+model PaymentEvent {
+  id          String   @id @default(cuid())
+  paymentId   String
+  eventType   PaymentEventType
+  status      PaymentStatus?
+  message     String?
+  data        Json?    // Event-specific data
+  createdAt   DateTime @default(now())
+
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([paymentId, createdAt])
+}
+
+enum PaymentEventType {
+  CREATED       // Payment was created
+  SUBMITTED     // Payment was submitted to provider
+  PROCESSING    // Payment is being processed
+  COMPLETED     // Payment completed successfully
+  FAILED        // Payment failed
+  CANCELLED     // Payment was cancelled
+  EXPIRED       // Payment expired
+  WEBHOOK       // Webhook received from provider
+  REFUND_INITIATED // Refund was initiated
+  REFUNDED      // Refund completed
+  ERROR         // Error occurred
 }

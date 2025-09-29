@@ -27,6 +27,7 @@ import {
   Share2,
   Monitor,
   Activity,
+  CreditCard,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -65,6 +66,7 @@ const navigationItems = [
       { title: 'Calendar', href: '/calendar', icon: Calendar },
       { title: 'Mail', href: '/mail', icon: Mail },
       { title: 'File Upload', href: '/files', icon: Upload },
+      { title: 'Payments', href: '/payments', icon: CreditCard },
       { title: 'React Flow', href: '/reactflow', icon: Workflow },
       { title: 'Local Collaborative', href: '/reactflow/local-collaborative', icon: Monitor },
       { title: 'Remote Collaborative', href: '/reactflow/remote-collaborative', icon: Share2 },

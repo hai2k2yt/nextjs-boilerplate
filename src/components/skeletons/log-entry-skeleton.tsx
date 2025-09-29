@@ -18,20 +18,7 @@ export const LogEntrySkeleton = () => (
   </div>
 )
 
-export const RealTimeLogSkeleton = () => (
-  <div className="p-3 rounded-lg border-l-4 border-l-gray-300 bg-gray-50 space-y-2">
-    <div className="flex items-center space-x-2">
-      <Skeleton className="h-4 w-4 rounded" />
-      <Skeleton className="h-4 w-20" />
-      <Skeleton className="h-4 w-16" />
-    </div>
-    <Skeleton className="h-4 w-3/4" />
-    <div className="flex items-center space-x-4">
-      <Skeleton className="h-3 w-16" />
-      <Skeleton className="h-3 w-12" />
-    </div>
-  </div>
-)
+
 
 export const SyncLogSkeleton = () => (
   <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">

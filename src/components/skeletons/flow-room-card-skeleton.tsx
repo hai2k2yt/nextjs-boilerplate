@@ -41,18 +41,4 @@ export const FlowRoomCardSkeleton = () => (
   </Card>
 )
 
-// Simpler version for basic room cards
-export const SimpleFlowRoomCardSkeleton = () => (
-  <Card className="animate-pulse">
-    <CardHeader>
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-3 w-1/2" />
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-2">
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-2/3" />
-      </div>
-    </CardContent>
-  </Card>
-)
+

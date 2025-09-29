@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from 'next-themes'
 import { SessionProvider } from 'next-auth/react'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as SonnerToaster } from 'sonner'
 import { trpc } from '@/lib/trpc'
 import { httpBatchLink } from '@trpc/client'
 import { useState } from 'react'
@@ -59,6 +60,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           >
             {children}
             <Toaster />
+            <SonnerToaster />
             <ReactQueryDevtools initialIsOpen={false} />
           </ThemeProvider>
         </SessionProvider>

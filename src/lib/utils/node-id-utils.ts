@@ -64,41 +64,4 @@ export function fixDuplicateNodeIds(nodes: CustomNode[]): CustomNode[] {
   })
 }
 
-/**
- * Get the next available numeric node ID (for backward compatibility)
- * This scans existing nodes and returns the next available number
- */
-export function getNextNumericNodeId(existingNodes: CustomNode[]): number {
-  let maxId = 0
-  
-  existingNodes.forEach(node => {
-    // Try to extract numeric ID from various formats
-    const patterns = [
-      /^node-(\d+)$/,           // node-4
-      /^node-(\d+)-/,           // node-4-abc123
-      /^(\d+)$/                 // 4
-    ]
-    
-    for (const pattern of patterns) {
-      const match = node.id.match(pattern)
-      if (match) {
-        const nodeNum = parseInt(match[1], 10)
-        if (nodeNum > maxId) {
-          maxId = nodeNum
-        }
-        break
-      }
-    }
-  })
-  
-  return maxId + 1
-}
 
-/**
- * Generate a simple numeric node ID (for backward compatibility)
- * Use this only when you're sure there won't be concurrent users
- */
-export function generateNumericNodeId(existingNodes: CustomNode[]): string {
-  const nextId = getNextNumericNodeId(existingNodes)
-  return `node-${nextId}`
-}

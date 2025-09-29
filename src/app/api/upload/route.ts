@@ -1,37 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerAuthSession } from '@/server/auth'
 import { supabaseAdmin, generateStoragePath, validateFile, STORAGE_BUCKET } from '@/lib/supabase'
 import { clientFileSchema } from '@/lib/validations/file'
+import {
+  createAuthenticatedHandler,
+  createSuccessResponse,
+  createErrorResponse,
+  AuthenticatedRequest
+} from '@/lib/middleware/auth'
 
-export async function POST(request: NextRequest) {
+const handleFileUpload = async (request: AuthenticatedRequest): Promise<NextResponse> => {
   try {
-    // Check authentication
-    const session = await getServerAuthSession()
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     // Parse form data
     const formData = await request.formData()
     const file = formData.get('file') as File
-    
+
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      )
+      return createErrorResponse('No file provided', 400)
     }
 
     // Validate file on server side
     const validation = validateFile(file)
     if (!validation.isValid) {
-      return NextResponse.json(
-        { error: 'File validation failed', details: validation.errors },
-        { status: 400 }
-      )
+      return createErrorResponse('File validation failed', 400, validation.errors)
     }
 
     // Additional validation with Zod
@@ -42,14 +32,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (!fileValidation.success) {
-      return NextResponse.json(
-        { error: 'File validation failed', details: fileValidation.error.errors },
-        { status: 400 }
-      )
+      return createErrorResponse('File validation failed', 400, fileValidation.error.errors)
     }
 
     // Generate storage path
-    const storageKey = generateStoragePath(session.user.id, file.name)
+    const storageKey = generateStoragePath(request.user.id, file.name)
 
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer()
@@ -71,10 +58,7 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) {
       console.error('Supabase upload error:', uploadError)
-      return NextResponse.json(
-        { error: 'Failed to upload file to storage' },
-        { status: 500 }
-      )
+      return createErrorResponse('Failed to upload file to storage', 500)
     }
 
     // Get public URL (for public files) or prepare for signed URL generation
@@ -83,8 +67,7 @@ export async function POST(request: NextRequest) {
       .getPublicUrl(storageKey)
 
     // Return upload success with file metadata
-    return NextResponse.json({
-      success: true,
+    return createSuccessResponse({
       file: {
         storageKey: uploadData.path,
         publicUrl: urlData.publicUrl,
@@ -97,12 +80,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return createErrorResponse('Internal server error', 500)
   }
 }
+
+export const POST = createAuthenticatedHandler(handleFileUpload)
 
 // Handle preflight requests for CORS
 export async function OPTIONS(_request: NextRequest) {
